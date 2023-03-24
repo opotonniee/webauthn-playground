@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link id="favicon" rel="icon" href="/img/favicon.ico" type="image/x-icon" />
+  <title>WebAuthn migration test</title>
+
+  <link rel="stylesheet" href="css/style.css" />
+
+  <style>
+    table#support,
+    #support th,
+    #support td {
+      border: 1px black solid;
+      border-collapse: collapse;
+    }
+
+    h2 {
+      font-size: 120%;
+      font-weight: bold;
+      margin: 10px 0 5px 0;
+    }
+
+    td,
+    th {
+      padding: 5px;
+    }
+
+    #support td:not(:first-child) {
+      text-align: center;
+    }
+
+    #config input {
+      width: auto;
+      margin: 0;
+      display: initial;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h2>Support of WebAuthn</h2>
+  <table id="support">
+    <tr>
+      <th>Lib</th>
+      <th>WebAuthn</th>
+      <th>Autofill</th>
+      <th>Paltform</th>
+    </tr>
+    <tr>
+      <td>IdCloud</td>
+      <td id="idcwa"></td>
+      <td id="idcaf"></td>
+      <td id="idcpf"></td>
+    </tr>
+    <tr>
+      <td>SimpleWebAuthn</td>
+      <td id="swawa"></td>
+      <td id="swaaf"></td>
+      <td id="swapf"></td>
+    </tr>
+  </table>
+
+  <h2>WebAuthn Operations</h2>
+  <div>
+    Request:
+    <select id="request">
+      <option value="0">IDC Register</option>
+      <option value="1">IDC Login</option>
+      <option value="2">SWA Register</option>
+      <option value="3">SWA Login</option>
+    </select>
+    <button id="run">Execute</button>
+    <span id="status" class="result"></span>
+  </div>
+  <table id="config"></table>
+  <div>
+    <p>Input</p>
+    <textarea id="input" style="width:99%" rows="5">
+    </textarea>
+  </div>
+  <div>
+    <p>Output <button onclick="parseResult()">Parse</button></p>
+    <textarea class="result" id="output" style="width:99%" rows="5">
+    </textarea>
+    <table id="parsed-data" class="result"></table>
+  </div>
+
+  <div style="display:none;">
+    <div>
+    </div>
+  </div>
+
+  <script src="js/jquery-3.6.4.slim.min.js"></script>
+  <script src="js/simplewebauthn.min.js"></script>
+  <script src="js/base64url-arraybuffer.js"></script>
+  <script src="js/idcloud.js"></script>
+  <script src="js/jsconfig.js"></script>
+  <script src="js/cbor.js"></script>
+
+  <script>
+
+    let idCloud;
+
+    async function idcregister(options, success, failure) {
+      return idCloud.enroll(options, { getCredName: () => { return "test"; } });
+    }
+
+    async function idclogin(options) {
+      return idCloud.authenticate(options);
+    }
+
+    async function swaregister(options, success, failure) {
+      return SimpleWebAuthnBrowser.startRegistration(options);
+    }
+
+    async function swalogin(options, success, failure) {
+      return SimpleWebAuthnBrowser.startAuthentication(options);
+    }
+
+    let operations = [idcregister, idclogin, swaregister, swalogin];
+    let operation;
+    let RP_NAME = "idcfido";
+    let requestConfigurators = [configureRegister, configureLogin];
+    let requests = [
+      // register
+      {
+        "rp": {
+          origins: [
+            origin
+          ],
+          id: origin.hostname,
+          name: RP_NAME
+        },
+        "user": {
+          "name": "alexm or alex.p.mueller",
+          "id": "BaIySnJmQNCQ82satZQ87A",
+          "displayName": "Alex P. Müller"
+        },
+        "challenge": "AAABeB78HrIemh1jTdJICr_3QG_RMOhp",
+        "pubKeyCredParams": [
+          {
+            type: "public-key",
+            alg: -257
+          }, {
+            type: "public-key",
+            alg: -258
+          }, {
+            type: "public-key",
+            alg: -259
+          }, {
+            type: "public-key",
+            alg: -35
+          }, {
+            type: "public-key",
+            alg: -36
+          }, {
+            type: "public-key",
+            alg: -65535
+          }, {
+            type: "public-key",
+            alg: -7
+          }, {
+            type: "public-key",
+            alg: -8
+          }
+        ],
+        "excludeCredentials": [],
+        "timeout": 120000,
+        "authenticatorSelection": {},
+        "attestation": "none"
+      },
+
+      // login
+      {
+        "challenge": "AAABeB78HrIemh1jTdJICr_3QG_RMOhp",
+        "timeout": 120000,
+        "rpId": origin.hostname,
+        "allowCredentials": [],
+        "userVerification": "preferred",
+        "extensions": {
+          "thalesgroup_txn_ext_v1": {
+            "txnDigest": "AAABdeSqQV3OOnltJqFBfrRcBSw9SAIY",
+            "txnDetails": [
+              {
+                "key1": "value1"
+              },
+              {
+                "key2": "value2"
+              }
+            ],
+            "nonce": "AAABdhzkZmLlTio_PX1JhKOF7gOQzUSV",
+            "challengeDerivationScheme": 1
+          }
+        }
+      }
+    ];
+
+    let jsc = new JsConfig(true)
+      .add("authenticatorAttachment", JsConfig.listType("platform", "cross-platform", ""), "", "Authenticator type", "0")
+      .add("residentKey", JsConfig.listType("required", "preferred", "discouraged", ""), "preferred", "FIDO credential filter", "0")
+      .add("userVerification", JsConfig.listType("required", "preferred", "discouraged"), "preferred", "FIDO credential filter", "0 1")
+      .add("attestation", JsConfig.listType("none", "direct", "indirect"), "none", "Requested FIDO attestation type", "0")
+      .add("credId", JsConfig.textType(" *[^ ]* *"), "", "Expected credential id", "1");
+    let config = jsc._;
+
+    async function showSupport() {
+      idCloud = new IdCloud({
+        fido: {
+          usePlatformFIDO: config.authenticatorAttachment != "cross-platform",
+          useRoamingFIDO: config.authenticatorAttachment != "platform"
+        }
+      });
+      $("#idcwa").text(await idCloud.isFido2Available() ? "✅" : "❌");
+      $("#idcaf").text(idCloud.isAutoFillSupported() ? "✅" : "❌");
+      $("#idcpf").text("N/A");
+      $("#swawa").text(SimpleWebAuthnBrowser.browserSupportsWebAuthn() ? "✅" : "❌");
+      $("#swaaf").text(await SimpleWebAuthnBrowser.browserSupportsWebAuthnAutofill() ? "✅" : "❌");
+      $("#swapf").text(await SimpleWebAuthnBrowser.platformAuthenticatorIsAvailable() ? "✅" : "❌");
+    }
+    showSupport();
+
+    function configureRegister() {
+      requests[0].authenticatorSelection.residentKey = config.residentKey ? config.residentKey : undefined;
+      requests[0].authenticatorSelection.userVerification = config.userVerification ? config.userVerification : undefined;
+      requests[0].authenticatorSelection.authenticatorAttachment = config.authenticatorAttachment ? config.authenticatorAttachment : undefined;
+      requests[0].attestation = config.attestation;
+    }
+
+    function configureLogin() {
+      requests[1].allowCredentials = config.credId ? [{
+        "type": "public-key",
+        "id": config.credId
+      }] : [];
+      requests[1].userVerification = config.userVerification ? config.userVerification : undefined;
+    }
+
+    function configChanged() {
+      localStorage.setItem("idcf_tests", JSON.stringify(config));
+      updateConfig(getRequest());
+      showSupport();
+    }
+    jsc.onChange(configChanged)
+      .setConfig(localStorage.getItem("idcf_tests"))
+      .showConfigTable($("#config"), false);
+
+
+    function stringifyUint8ArrayAsBase64(key, value) {
+      if (value.buffer && value.byteLength) {
+        return base64url.encode(value);
+      } else {
+        return value;
+      }
+    }
+
+    function array2hex(u8array) {
+      return Array.from(u8array).map(b => ("0" + b.toString(16)).slice(-2)).join('');
+    }
+
+    function getRequest() {
+      let reqId = Number.parseInt($("#request").val());
+      let reqType = reqId % 2;
+      return {
+        request: requests[reqType],
+        configurator: requestConfigurators[reqType],
+        operation: operations[reqId],
+        class: "." + reqType
+      }
+    }
+
+    function updateConfig(req) {
+      req.configurator();
+      $("#input").val(JSON.stringify(req.request, null, 2));
+    }
+
+    function updateRequest() {
+      $(".result").empty();
+      $(".result").val("");
+      $("#config tr").hide();
+      let req = getRequest();
+      operation = req.operation;
+      $(req.class).show();
+      updateConfig(req);
+    }
+    updateRequest();
+    $("#request").on("change", updateRequest);
+
+    function parseResult(result) {
+      function addRow(name, value) {
+        $("#parsed-data").append(`<tr><td>${name}: </td><td>${value}</td></tr>`);
+      }
+      function addAuthData(authenticatorData) {
+        /*
+        rpIdHash: 32 	SHA-256 hash of the RP ID the credential is scoped to.
+        flags 	1 	Flags (bit 0 is the least significant bit):
+          Bit 0: User Present (UP)
+          Bit 1: Reserved for future use (RFU1).
+          Bit 2: User Verified (UV)
+          Bit 3: Backup Eligibility (BE).
+          Bit 4: Backup State (BS).
+          Bit 5: Reserved for future use (RFU2).
+          Bit 6: Attested credential data included (AT).
+          Bit 7: Extension data included (ED).
+        signCount 	4 	Signature counter, 32-bit unsigned big-endian integer.
+        attestedCredentialData 	variable (if present)
+        extensions 	variable (if present) 	CBOR Extension-defined authenticator data.
+        */
+        let authDesc = "rpIdHash: " + base64url.encode(new Int8Array(authenticatorData.slice(0, 32)));
+        const flag = new Int8Array(authenticatorData.slice(32, 33))[0];
+        let flags = [];
+        (flag & 0x01) && flags.push("User Present");
+        (flag & 0x04) && flags.push("User Verified");
+        (flag & 0x08) && flags.push("Backup Eligible");
+        (flag & 0x10) && flags.push("Backed-up");
+        (flag & 0x40) && flags.push("Attested data");
+        (flag & 0x80) && flags.push("Extension data");
+        const counter = new DataView(new Uint8Array(authenticatorData.slice(33, 37)).buffer).getUint32();
+        authDesc += "<br/>Flags: "
+          + "0b" + ("00000000" + flag.toString(2)).slice(-8)
+          + (flags.length ? `  (${flags.toString()})` : "");
+        authDesc += "<br/>Counter: " + counter;
+        if (flag & 0x40) {
+          /*
+          attestedCredentialData:
+            AAGUID: 16
+            CredId Len: 2
+            CredId
+            COSE Pub key: 77
+          */
+
+          let aaguid = array2hex(new Uint8Array(authenticatorData.slice(37, 53)));
+          authDesc += "<br/>AAGUID: " + `${aaguid.slice(0, 8)}-${aaguid.slice(8, 12)}-${aaguid.slice(12, 16)}-${aaguid.slice(16, 20)}-${aaguid.slice(20)}`;
+
+          const credIdLen = new DataView(new Int8Array(authenticatorData.slice(53, 55)).buffer).getUint16();
+          const credId = base64url.encode(new Int8Array(authenticatorData.slice(55, 55 + credIdLen)));
+          $("#credId").val(credId);
+          jsc.readConfigTable();
+          authDesc += "<br/>CredId: " + credId;
+          authDesc += "<br/>Pub Key: " + base64url.encode(new Int8Array(authenticatorData.slice(55 + credIdLen, 55 + credIdLen + 77)));
+        }
+        addRow("Authenticator Data", authDesc);
+      }
+      $("#parsed-data").empty();
+      if (!result) {
+        try {
+          result = JSON.parse($("#output").val());
+        } catch (error) {
+          $("#status").text("Error: JSON result is not valid");
+          return;
+        }
+      }
+      if (result.response.clientDataJSON) {
+        addRow("Client Data", new TextDecoder().decode(base64url.decode(result.response.clientDataJSON)));
+      }
+      if (result.response.authenticatorData) {
+        addAuthData(base64url.decode(result.response.authenticatorData));
+      }
+      if (result.response.attestationObject) {
+        const attObj = CBOR.decode(base64url.decode(result.response.attestationObject));
+        console.log("Attestation Object", attObj);
+        addAuthData(attObj.authData);
+        let attDesc = "Format: " + attObj.fmt + "<br/>";
+        if (attObj.fmt == "android-safetynet") {
+          const jwtBody = new TextDecoder().decode(attObj.attStmt.response).split('.')[1];
+          attDesc += "<pre>" + JSON.stringify(JSON.parse(new TextDecoder().decode(base64url.decode(jwtBody))), stringifyUint8ArrayAsBase64, 2) + "</pre>";
+        } else {
+          attDesc += "<pre>" + JSON.stringify(attObj.attStmt, stringifyUint8ArrayAsBase64, 2) + "</pre>";
+        }
+        addRow("Attestation Statement", attDesc);
+      }
+    }
+
+    $("#run").on("click", async () => {
+      $(".result").empty();
+      $(".result").val("");
+      let input = $("#input").val();
+      try {
+        let output = await operation(JSON.parse(input));
+        $("#status").text("ok");
+        $("#output").val(JSON.stringify(output, null, 2));
+        parseResult(output);
+      } catch (err) {
+        $("#status").text("error: " + err);
+        console.error(err);
+      }
+    });
+
+  </script>
+</body>
+
+</html>

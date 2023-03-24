@@ -1,2 +1,4 @@
-# webauthn-playground
-Developper testing tools for WebAuthn operations
+# WebAuthn Playground
+
+Developer testing tools for WebAuthn operations
+
