@@ -226,6 +226,7 @@
 
     function configureRegister() {
       requests[0].authenticatorSelection.residentKey = config.residentKey ? config.residentKey : undefined;
+      requests[0].authenticatorSelection.requireResidentKey = config.residentKey ? config.residentKey == "required" : undefined;
       requests[0].authenticatorSelection.userVerification = config.userVerification ? config.userVerification : undefined;
       requests[0].authenticatorSelection.authenticatorAttachment = config.authenticatorAttachment ? config.authenticatorAttachment : undefined;
       requests[0].attestation = config.attestation;
