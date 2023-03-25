@@ -53,7 +53,7 @@ class IdCloud {
     });
   }
 
-  isAutoFillSupported() {
+  async isAutoFillSupported() {
     return PublicKeyCredential.isConditionalMediationSupported &&
      PublicKeyCredential.isConditionalMediationSupported();
   }

@@ -216,7 +216,7 @@
         }
       });
       $("#idcwa").text(await idCloud.isFido2Available() ? "✅" : "❌");
-      $("#idcaf").text(idCloud.isAutoFillSupported() ? "✅" : "❌");
+      $("#idcaf").text(await idCloud.isAutoFillSupported() ? "✅" : "❌");
       $("#idcpf").text("N/A");
       $("#swawa").text(SimpleWebAuthnBrowser.browserSupportsWebAuthn() ? "✅" : "❌");
       $("#swaaf").text(await SimpleWebAuthnBrowser.browserSupportsWebAuthnAutofill() ? "✅" : "❌");
