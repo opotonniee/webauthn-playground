@@ -180,7 +180,7 @@
 
     let operations = [idcregister, idclogin, swaregister, swalogin];
     let operation;
-    let RP_NAME = "idcfido";
+    let RP_NAME = "webauthn-playground";
     let requestConfigurators = [configureRegister, configureLogin];
     const REQ_REGISTER = {
       "rp": {
@@ -305,12 +305,12 @@
     }
 
     function configChanged() {
-      localStorage.setItem("idcf_tests", JSON.stringify(config));
+      localStorage.setItem("webauthn_pg_tests", JSON.stringify(config));
       updateConfig(getRequest());
       showSupport();
     }
     jsc.onChange(configChanged)
-      .setConfig(localStorage.getItem("idcf_tests"))
+      .setConfig(localStorage.getItem("webauthn_pg_tests"))
       .showConfigTable($("#config"), false);
 
 
