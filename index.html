@@ -33,21 +33,29 @@
       text-align: center;
     }
 
-    #config, #parsed-data {
+    #config,
+    #parsed-data {
       width: 100%;
     }
-    #config td, #parsed-data td {
+
+    #config td,
+    #parsed-data td {
       width: 100%;
       word-wrap: normal;
     }
-    #config td:first-child, #parsed-data td:first-child {
+
+    #config td:first-child,
+    #parsed-data td:first-child {
       width: fit-content;
     }
+
     #config input {
       margin: 0;
       display: initial;
     }
-    #credId, #userName {
+
+    #credId,
+    #userName {
       width: 98%;
       max-width: 800px;
     }
@@ -71,6 +79,7 @@
       body {
         font-size: 80%;
       }
+
       .io-span {
         display: block;
         width: initial;
@@ -440,7 +449,7 @@
         if (attObj.fmt == "android-safetynet") {
           const jwtBody = new TextDecoder().decode(attObj.attStmt.response).split('.')[1];
           attDesc += "<pre>" + JSON.stringify(JSON.parse(new TextDecoder().decode(base64url.decode(jwtBody))),
-             stringifyUint8ArrayAsBase64, 2) + "</pre>";
+            stringifyUint8ArrayAsBase64, 2) + "</pre>";
         } else {
           attDesc += "<pre>" + JSON.stringify(attObj.attStmt, stringifyUint8ArrayAsBase64, 2) + "</pre>";
         }
