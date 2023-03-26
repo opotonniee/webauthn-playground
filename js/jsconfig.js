@@ -213,7 +213,7 @@ class JsConfig {
           if (readonly) {
             input = val;
           } else  {
-            input = $(`<input type="text" id="${name}" size="50"/>`);
+            input = $(`<input type="text" id="${name}"/>`);
             input.val(val);
           }
           break;

@@ -116,6 +116,10 @@ input[type="checkbox"]:checked {
   content: "X";
 }
 
+.error {
+  background-color: #F99;
+}
+
 /* for 480px or less */
 @media screen and (max-width: 480px) {
   h1 {

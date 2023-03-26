@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link id="favicon" rel="icon" href="/img/favicon.ico" type="image/x-icon" />
+  <link id="favicon" rel="icon" href="img/favicon.ico" type="image/x-icon" />
   <title>WebAuthn migration test</title>
 
   <link rel="stylesheet" href="css/style.css" />
@@ -33,10 +33,53 @@
       text-align: center;
     }
 
+    #config, #parsed-data {
+      width: 100%;
+    }
+    #config td, #parsed-data td {
+      width: 100%;
+      word-wrap: normal;
+    }
+    #config td:first-child, #parsed-data td:first-child {
+      width: fit-content;
+    }
     #config input {
-      width: auto;
       margin: 0;
       display: initial;
+    }
+    #credId, #userName {
+      width: 98%;
+      max-width: 800px;
+    }
+
+    .io-span {
+      display: table-cell;
+      width: 600px;
+    }
+
+    .io-textarea {
+      width: 95%;
+      height: 300px;
+    }
+
+    .io-title {
+      line-height: 30px;
+      background-color: rgba(211, 211, 211, 0.809);
+    }
+
+    @media screen and (max-width: 480px) {
+      body {
+        font-size: 80%;
+      }
+      .io-span {
+        display: block;
+        width: initial;
+      }
+
+      .io-textarea {
+        width: 99%;
+        height: 200px;
+      }
     }
   </style>
 </head>
@@ -78,21 +121,20 @@
     <span id="status" class="result"></span>
   </div>
   <table id="config"></table>
-  <div>
-    <p>Input</p>
-    <textarea id="input" style="width:99%" rows="5">
+  <span class="io-span">
+    <h3 class="io-title">Input - <a href="#"
+        onclick="resetRequests(); configChanged(); readInput(); return false;">Reset</a></h3>
+    <textarea id="input" class="io-textarea">
     </textarea>
-  </div>
-  <div>
-    <p>Output <button onclick="parseResult()">Parse</button></p>
-    <textarea class="result" id="output" style="width:99%" rows="5">
+  </span>
+  <span class="io-span">
+    <h3 class="io-title">Output <button onclick="parseResult()">Parse</button></h3>
+    <textarea class="result io-textarea" id="output">
     </textarea>
+  </span>
+  <div>
+    <h3 class="io-title">Parsed Output</h3>
     <table id="parsed-data" class="result"></table>
-  </div>
-
-  <div style="display:none;">
-    <div>
-    </div>
   </div>
 
   <script src="js/jquery-3.6.4.slim.min.js"></script>
@@ -126,81 +168,82 @@
     let operation;
     let RP_NAME = "idcfido";
     let requestConfigurators = [configureRegister, configureLogin];
-    let requests = [
-      // register
-      {
-        "rp": {
-          origins: [
-            origin
-          ],
-          id: origin.hostname,
-          name: RP_NAME
-        },
-        "user": {
-          "name": "alexm or alex.p.mueller",
-          "id": "BaIySnJmQNCQ82satZQ87A",
-          "displayName": "Alex P. Müller"
-        },
-        "challenge": "AAABeB78HrIemh1jTdJICr_3QG_RMOhp",
-        "pubKeyCredParams": [
-          {
-            type: "public-key",
-            alg: -257
-          }, {
-            type: "public-key",
-            alg: -258
-          }, {
-            type: "public-key",
-            alg: -259
-          }, {
-            type: "public-key",
-            alg: -35
-          }, {
-            type: "public-key",
-            alg: -36
-          }, {
-            type: "public-key",
-            alg: -65535
-          }, {
-            type: "public-key",
-            alg: -7
-          }, {
-            type: "public-key",
-            alg: -8
-          }
+    const REQ_REGISTER = {
+      "rp": {
+        origins: [
+          origin
         ],
-        "excludeCredentials": [],
-        "timeout": 120000,
-        "authenticatorSelection": {},
-        "attestation": "none"
+        id: origin.hostname,
+        name: RP_NAME
       },
-
-      // login
-      {
-        "challenge": "AAABeB78HrIemh1jTdJICr_3QG_RMOhp",
-        "timeout": 120000,
-        "rpId": origin.hostname,
-        "allowCredentials": [],
-        "userVerification": "preferred",
-        "extensions": {
-          "thalesgroup_txn_ext_v1": {
-            "txnDigest": "AAABdeSqQV3OOnltJqFBfrRcBSw9SAIY",
-            "txnDetails": [
-              {
-                "key1": "value1"
-              },
-              {
-                "key2": "value2"
-              }
-            ],
-            "nonce": "AAABdhzkZmLlTio_PX1JhKOF7gOQzUSV",
-            "challengeDerivationScheme": 1
-          }
+      "user": {
+        "name": "alexm or alex.p.mueller",
+        "id": "BaIySnJmQNCQ82satZQ87A",
+        "displayName": "Alex P. Müller"
+      },
+      "challenge": "AAABeB78HrIemh1jTdJICr_3QG_RMOhp",
+      "pubKeyCredParams": [
+        {
+          type: "public-key",
+          alg: -257
+        }, {
+          type: "public-key",
+          alg: -258
+        }, {
+          type: "public-key",
+          alg: -259
+        }, {
+          type: "public-key",
+          alg: -35
+        }, {
+          type: "public-key",
+          alg: -36
+        }, {
+          type: "public-key",
+          alg: -65535
+        }, {
+          type: "public-key",
+          alg: -7
+        }, {
+          type: "public-key",
+          alg: -8
+        }
+      ],
+      "excludeCredentials": [],
+      "timeout": 120000,
+      "authenticatorSelection": {},
+      "attestation": "none"
+    };
+    const REQ_LOGIN = {
+      "challenge": "AAABeB78HrIemh1jTdJICr_3QG_RMOhp",
+      "timeout": 120000,
+      "rpId": origin.hostname,
+      "allowCredentials": [],
+      "userVerification": "preferred",
+      "extensions": {
+        "thalesgroup_txn_ext_v1": {
+          "txnDigest": "AAABdeSqQV3OOnltJqFBfrRcBSw9SAIY",
+          "txnDetails": [
+            {
+              "key1": "value1"
+            },
+            {
+              "key2": "value2"
+            }
+          ],
+          "nonce": "AAABdhzkZmLlTio_PX1JhKOF7gOQzUSV",
+          "challengeDerivationScheme": 1
         }
       }
-    ];
+    };
+    let requests;
+    function resetRequests() {
+      requests = [JSON.parse(JSON.stringify(REQ_REGISTER)), JSON.parse(JSON.stringify(REQ_LOGIN))];
+    }
+    resetRequests();
 
     let jsc = new JsConfig(true)
+      .add("userName", JsConfig.textType(".*"), "alex muller", "user name", "0 1")
       .add("authenticatorAttachment", JsConfig.listType("platform", "cross-platform", ""), "", "Authenticator type", "0")
       .add("residentKey", JsConfig.listType("required", "preferred", "discouraged", ""), "preferred", "FIDO credential filter", "0")
       .add("userVerification", JsConfig.listType("required", "preferred", "discouraged"), "preferred", "FIDO credential filter", "0 1")
@@ -224,12 +267,19 @@
     }
     showSupport();
 
+    const capitalize = (str, lower = false) =>
+      (lower ? str.toLowerCase() : str).replace(/(?:^|\s|["'([{])+\S/g, match => match.toUpperCase());
+
+
     function configureRegister() {
       requests[0].authenticatorSelection.residentKey = config.residentKey ? config.residentKey : undefined;
       requests[0].authenticatorSelection.requireResidentKey = config.residentKey ? config.residentKey == "required" : undefined;
       requests[0].authenticatorSelection.userVerification = config.userVerification ? config.userVerification : undefined;
       requests[0].authenticatorSelection.authenticatorAttachment = config.authenticatorAttachment ? config.authenticatorAttachment : undefined;
       requests[0].attestation = config.attestation;
+      requests[0].user.name = config.userName;
+      requests[0].user.displayName = capitalize(config.userName, true);
+      requests[0].user.id = base64url.encode(new TextEncoder().encode(config.userName));
     }
 
     function configureLogin() {
@@ -270,7 +320,7 @@
         configurator: requestConfigurators[reqType],
         operation: operations[reqId],
         class: "." + reqType
-      }
+      };
     }
 
     function updateConfig(req) {
@@ -289,6 +339,26 @@
     }
     updateRequest();
     $("#request").on("change", updateRequest);
+    function setDisabled(selector, isDisabled) {
+      $(selector).attr("disabled", isDisabled);
+    }
+
+    function readInput() {
+      let disableInputs = false;
+      let jsonInput;
+      try {
+        jsonInput = JSON.parse($("#input").val());
+        $("#input").removeClass("error");
+      } catch (jsonErr) {
+        $("#input").addClass("error");
+        disableInputs = true;
+      }
+      setDisabled("input, button, select", disableInputs);
+      return jsonInput;
+    }
+    $("#input").on("keyup", () => {
+      readInput();
+    });
 
     function parseResult(result) {
       function addRow(name, value) {
@@ -355,7 +425,9 @@
         }
       }
       if (result.response.clientDataJSON) {
-        addRow("Client Data", new TextDecoder().decode(base64url.decode(result.response.clientDataJSON)));
+        addRow("Client Data", "<pre>" + JSON.stringify(
+          JSON.parse(new TextDecoder().decode(base64url.decode(result.response.clientDataJSON))),
+          undefined, 2) + "</pre>");
       }
       if (result.response.authenticatorData) {
         addAuthData(base64url.decode(result.response.authenticatorData));
@@ -367,7 +439,8 @@
         let attDesc = "Format: " + attObj.fmt + "<br/>";
         if (attObj.fmt == "android-safetynet") {
           const jwtBody = new TextDecoder().decode(attObj.attStmt.response).split('.')[1];
-          attDesc += "<pre>" + JSON.stringify(JSON.parse(new TextDecoder().decode(base64url.decode(jwtBody))), stringifyUint8ArrayAsBase64, 2) + "</pre>";
+          attDesc += "<pre>" + JSON.stringify(JSON.parse(new TextDecoder().decode(base64url.decode(jwtBody))),
+             stringifyUint8ArrayAsBase64, 2) + "</pre>";
         } else {
           attDesc += "<pre>" + JSON.stringify(attObj.attStmt, stringifyUint8ArrayAsBase64, 2) + "</pre>";
         }
@@ -378,9 +451,12 @@
     $("#run").on("click", async () => {
       $(".result").empty();
       $(".result").val("");
-      let input = $("#input").val();
       try {
-        let output = await operation(JSON.parse(input));
+        let jsonInput = readInput();
+        if (!jsonInput) {
+          return;
+        }
+        let output = await operation(jsonInput);
         $("#status").text("ok");
         $("#output").val(JSON.stringify(output, null, 2));
         parseResult(output);

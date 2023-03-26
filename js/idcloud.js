@@ -26,14 +26,14 @@ class IdCloud {
     this._options = {};
     Object.assign(this._options, IdCloud._DEFAULT_OPTIONS);
     options ? Object.assign(this._options, options) : false;
-    console.log(JSON.stringify(this._options));
+    //console.log(JSON.stringify(this._options));
     this.isFido2Available().then(yes => {
       if (!yes) {
         console.warn("!! WebAuthn not available");
         let webAuthnElts = document.getElementsByClassName("idcloud-webauthn");
         webAuthnElts.length && webAuthnElts.forEach((elt) => { elt.style.display = "none"; });
       } else {
-        console.debug("WebAuthn is available :)");
+        //console.debug("WebAuthn is available :)");
       }
     });
   }
@@ -69,7 +69,7 @@ class IdCloud {
     const encode = this._options.base64Encode;
 
     let credential = await navigator.credentials.create({ publicKey: credentialOptions });
-    console.debug("make credential ok: ", JSON.stringify(credential));
+    //console.debug("make credential ok: ", JSON.stringify(credential));
     let credName = navigator.userAgent.replaceAll(/[0-9;:\.\/\(\)]/ig, "").split(' ').slice(1, 4).join(" ");
     if (options && options.getCredName) {
       let defName = credName;
