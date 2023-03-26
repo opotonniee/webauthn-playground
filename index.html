@@ -73,11 +73,16 @@
     .io-title {
       line-height: 30px;
       background-color: rgba(211, 211, 211, 0.809);
+      width: 95%;
     }
 
     @media screen and (max-width: 480px) {
       body {
         font-size: 80%;
+      }
+
+      .io-title {
+        width: initial;
       }
 
       .io-span {
@@ -131,18 +136,18 @@
   </div>
   <table id="config"></table>
   <span class="io-span">
-    <h3 class="io-title">Input - <a href="#"
-        onclick="resetRequests(); configChanged(); readInput(); return false;">Reset</a></h3>
+    <h2 class="io-title">Input - <a href="#"
+        onclick="resetRequests(); configChanged(); readInput(); return false;">Reset</a></h2>
     <textarea id="input" class="io-textarea">
     </textarea>
   </span>
   <span class="io-span">
-    <h3 class="io-title">Output <button onclick="parseResult()">Parse</button></h3>
+    <h2 class="io-title">Output <button onclick="parseResult()">Parse</button></h2>
     <textarea class="result io-textarea" id="output">
     </textarea>
   </span>
   <div>
-    <h3 class="io-title">Parsed Output</h3>
+    <h2 class="io-title">Parsed Output</h2>
     <table id="parsed-data" class="result"></table>
   </div>
 
