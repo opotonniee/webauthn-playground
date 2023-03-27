@@ -13,7 +13,9 @@
   <style>
     table#support,
     #support th,
-    #support td {
+    #support td, 
+    #parsed-data,
+    #parsed-data td {
       border: 1px black solid;
       border-collapse: collapse;
     }
@@ -191,7 +193,7 @@
         name: RP_NAME
       },
       "user": {
-        "name": "alexm or alex.p.mueller",
+        "name": "",
         "id": "BaIySnJmQNCQ82satZQ87A",
         "displayName": "Alex P. Müller"
       },
@@ -459,7 +461,14 @@
           attDesc += "<pre>" + JSON.stringify(attObj.attStmt, stringifyUint8ArrayAsBase64, 2) + "</pre>";
         }
         addRow("Attestation Statement", attDesc);
+        if (result.response.getTransports) {
+          addRow("Transports", result.response.getTransports().toString());
+        }
+        if (result.response.getPublicKeyAlgorithm) {
+          addRow("Key algo", result.response.getPublicKeyAlgorithm());
+        }
       }
+
     }
 
     $("#run").on("click", async () => {

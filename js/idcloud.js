@@ -90,6 +90,12 @@ class IdCloud {
     if (credential.response.getAuthenticatorData) {
       response.getAuthenticatorData = credential.response.getAuthenticatorData;
     }
+    if (credential.response.getTransports) {
+      response.getTransports = () => credential.response.getTransports();
+    }
+    if (credential.response.getPublicKeyAlgorithm) {
+      response.getPublicKeyAlgorithm = () => credential.response.getPublicKeyAlgorithm();
+    }
     return {
       id: credential.id,
       rawId: encode(rawId),
