@@ -419,8 +419,12 @@
             COSE Pub key: 77
           */
 
-          let aaguid = array2hex(new Uint8Array(authenticatorData.slice(37, 53)));
-          authDesc += "<br/>AAGUID: " + `${aaguid.slice(0, 8)}-${aaguid.slice(8, 12)}-${aaguid.slice(12, 16)}-${aaguid.slice(16, 20)}-${aaguid.slice(20)}`;
+          let aaguidHexa = array2hex(new Uint8Array(authenticatorData.slice(37, 53)));
+          let aaguid = `${aaguidHexa.slice(0, 8)}-${aaguidHexa.slice(8, 12)}-${aaguidHexa.slice(12, 16)}-${aaguidHexa.slice(16, 20)}-${aaguidHexa.slice(20)}`;
+          if (aaguid != "00000000-0000-0000-0000-000000000000") {
+            aaguid = `<a target="_blank" href="https://opotonniee.github.io/fido-mds-explorer/?aaguid=${aaguid}">${aaguid}</a>`;
+          }
+          authDesc += "<br/>AAGUID: " + aaguid;
 
           const credIdLen = new DataView(new Int8Array(authenticatorData.slice(53, 55)).buffer).getUint16();
           const credId = base64url.encode(new Int8Array(authenticatorData.slice(55, 55 + credIdLen)));
@@ -459,6 +463,14 @@
             const jwtBody = new TextDecoder().decode(attObj.attStmt.response).split('.')[1];
             attDesc += "<pre>" + JSON.stringify(JSON.parse(new TextDecoder().decode(base64url.decode(jwtBody))),
               stringifyUint8ArrayAsBase64, 2) + "</pre>";
+          } else if (attObj.fmt == "fido-u2f") {
+            attDesc += "<br/>Signature: " + base64url.encode(attObj.attStmt.sig);
+            attDesc += "<br/>Certificates: <ul>";
+            for (cert of attObj.attStmt.x5c) {
+              const b64cert = base64url.encode(cert).replaceAll("_", "/").replaceAll("-", "+");
+              attDesc += `<li><a target="_blank" href="https://gchq.github.io/CyberChef/#recipe=Parse_X.509_certificate('Raw')&input=${encodeURIComponent(b64cert)}">🔎</a> - <a target="_blank" href="https://opotonniee.github.io/fido-mds-explorer/?x5c=${b64cert}">${b64cert}</a></li>`;
+            }
+            attDesc += "</ul>";
           } else {
             attDesc += "<pre>" + JSON.stringify(attObj.attStmt, stringifyUint8ArrayAsBase64, 2) + "</pre>";
           }
