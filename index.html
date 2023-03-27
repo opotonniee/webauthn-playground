@@ -13,7 +13,7 @@
   <style>
     table#support,
     #support th,
-    #support td, 
+    #support td,
     #parsed-data,
     #parsed-data td {
       border: 1px black solid;
@@ -452,21 +452,24 @@
         const attObj = CBOR.decode(base64url.decode(result.response.attestationObject));
         console.log("Attestation Object", attObj);
         addAuthData(attObj.authData);
-        let attDesc = "Format: " + attObj.fmt + "<br/>";
-        if (attObj.fmt == "android-safetynet") {
-          const jwtBody = new TextDecoder().decode(attObj.attStmt.response).split('.')[1];
-          attDesc += "<pre>" + JSON.stringify(JSON.parse(new TextDecoder().decode(base64url.decode(jwtBody))),
-            stringifyUint8ArrayAsBase64, 2) + "</pre>";
-        } else {
-          attDesc += "<pre>" + JSON.stringify(attObj.attStmt, stringifyUint8ArrayAsBase64, 2) + "</pre>";
+        let attDesc;
+        if (attObj.fmt != "none") {
+          attDesc = "Format: " + attObj.fmt + "<br/>";
+          if (attObj.fmt == "android-safetynet") {
+            const jwtBody = new TextDecoder().decode(attObj.attStmt.response).split('.')[1];
+            attDesc += "<pre>" + JSON.stringify(JSON.parse(new TextDecoder().decode(base64url.decode(jwtBody))),
+              stringifyUint8ArrayAsBase64, 2) + "</pre>";
+          } else {
+            attDesc += "<pre>" + JSON.stringify(attObj.attStmt, stringifyUint8ArrayAsBase64, 2) + "</pre>";
+          }
+          addRow("Attestation Statement", attDesc);
         }
-        addRow("Attestation Statement", attDesc);
-        if (result.response.getTransports) {
-          addRow("Transports", result.response.getTransports().toString());
-        }
-        if (result.response.getPublicKeyAlgorithm) {
-          addRow("Key algo", result.response.getPublicKeyAlgorithm());
-        }
+      }
+      if (result.response.getTransports) {
+        addRow("Transports", result.response.getTransports().toString());
+      }
+      if (result.response.getPublicKeyAlgorithm) {
+        addRow("Key algo", result.response.getPublicKeyAlgorithm());
       }
 
     }
