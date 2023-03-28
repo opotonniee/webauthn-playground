@@ -94,6 +94,7 @@
     .clickable {
       margin: 0 5px;
     }
+
     .clickable:hover {
       cursor: pointer;
     }
@@ -173,8 +174,8 @@
   <span class="io-span">
     <h2 class="io-title not-selectable">
       Output
-       <span id="parse-output" title="Parse JSON Output" class="clickable">🔎⤵</span>
-      </h2>
+      <span id="parse-output" title="Parse JSON Output" class="clickable">🔎⤵</span>
+    </h2>
     <textarea class="result io-textarea" id="output">
     </textarea>
   </span>
@@ -182,6 +183,10 @@
     <h2 class="not-selectable">Parsed Output</h2>
     <table id="parsed-data" class="result"></table>
   </div>
+
+  <footer>
+    <a href="https://github.com/opotonniee/webauthn-playground">Source code on GitHub</a>
+  </footer>
 
   <script src="js/jquery-3.6.4.slim.min.js"></script>
   <script src="js/simplewebauthn.min.js"></script>
