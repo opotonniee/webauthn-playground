@@ -313,9 +313,11 @@
       requests[0].authenticatorSelection.userVerification = config.userVerification ? config.userVerification : undefined;
       requests[0].authenticatorSelection.authenticatorAttachment = config.authenticatorAttachment ? config.authenticatorAttachment : undefined;
       requests[0].attestation = config.attestation;
-      requests[0].user.name = config.userName;
-      requests[0].user.displayName = capitalize(config.userName, true);
-      requests[0].user.id = base64url.encode(new TextEncoder().encode(config.userName));
+      requests[0].user = {
+        name: config.userName,
+        displayName: capitalize(config.userName, true),
+        id: base64url.encode(new TextEncoder().encode(config.userName))
+      };
     }
 
     function configureLogin() {
