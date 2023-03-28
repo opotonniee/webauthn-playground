@@ -184,23 +184,23 @@
 
     let idCloud;
 
-    async function idcregister(options, success, failure) {
+    async function idcRegister(options, success, failure) {
       return idCloud.enroll(options, { getCredName: () => { return "test"; } });
     }
 
-    async function idclogin(options) {
+    async function idcLogin(options) {
       return idCloud.authenticate(options);
     }
 
-    async function swaregister(options, success, failure) {
+    async function swaRegister(options, success, failure) {
       return SimpleWebAuthnBrowser.startRegistration(options);
     }
 
-    async function swalogin(options, success, failure) {
+    async function swaLogin(options, success, failure) {
       return SimpleWebAuthnBrowser.startAuthentication(options);
     }
 
-    let operations = [idcregister, idclogin, swaregister, swalogin];
+    let operations = [idcRegister, idcLogin, swaRegister, swaLogin];
     let operation;
     let RP_NAME = "webauthn-playground";
     let requestConfigurators = [configureRegister, configureLogin];
@@ -306,26 +306,27 @@
     const capitalize = (str, lower = false) =>
       (lower ? str.toLowerCase() : str).replace(/(?:^|\s|["'([{])+\S/g, match => match.toUpperCase());
 
-
-    function configureRegister() {
-      requests[0].authenticatorSelection.residentKey = config.residentKey ? config.residentKey : undefined;
-      requests[0].authenticatorSelection.requireResidentKey = config.residentKey ? config.residentKey == "required" : undefined;
-      requests[0].authenticatorSelection.userVerification = config.userVerification ? config.userVerification : undefined;
-      requests[0].authenticatorSelection.authenticatorAttachment = config.authenticatorAttachment ? config.authenticatorAttachment : undefined;
-      requests[0].attestation = config.attestation;
-      requests[0].user = {
+    function configureRegister(request) {
+      request.authenticatorSelection = {
+        residentKey: config.residentKey ? config.residentKey : undefined,
+        requireResidentKey: config.residentKey ? config.residentKey == "required" : undefined,
+        userVerification: config.userVerification ? config.userVerification : undefined,
+        authenticatorAttachment: config.authenticatorAttachment ? config.authenticatorAttachment : undefined
+      };
+      request.attestation = config.attestation;
+      request.user = {
         name: config.userName,
         displayName: capitalize(config.userName, true),
         id: base64url.encode(new TextEncoder().encode(config.userName))
       };
     }
 
-    function configureLogin() {
-      requests[1].allowCredentials = config.credId ? [{
+    function configureLogin(request) {
+      request.allowCredentials = config.credId ? [{
         "type": "public-key",
         "id": config.credId
       }] : [];
-      requests[1].userVerification = config.userVerification ? config.userVerification : undefined;
+      request.userVerification = config.userVerification ? config.userVerification : undefined;
     }
 
     function configChanged() {
@@ -356,13 +357,13 @@
       return {
         request: requests[reqId],
         configurator: requestConfigurators[reqId],
-        operation: operations[reqId * jslibId],
+        operation: operations[reqId + jslibId],
         class: "." + reqId
       };
     }
 
     function updateConfig(req) {
-      req.configurator();
+      req.configurator(req.request);
       $("#input").val(JSON.stringify(req.request, null, 2));
     }
 
