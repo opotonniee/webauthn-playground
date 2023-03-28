@@ -91,6 +91,13 @@
       font-weight: 100;
     }
 
+    .clickable {
+      margin: 0 5px;
+    }
+    .clickable:hover {
+      cursor: pointer;
+    }
+
     @media screen and (max-width: 480px) {
       body {
         font-size: 80%;
@@ -137,16 +144,14 @@
     </tr>
   </table>
 
-  <h2>
-    WebAuthn Operations
-    <span id="jslib-cfg" class="not-selectable">⚙️</span>
-    <span id="jslib-span" class="header-option hidden">
-      <select id="jslib">
-        <option value="0">IdCloud JS</option>
-        <option value="2">SimpleWebAuthn JS</option>
-      </select>
+  <h2 class="not-selectable">
+    <span id="jslib-span">WebAuthn Operations</span>
+    <span id="jslib-cfg" title="Configuration" class="clickable">⚙️</span>
+    <select id="jslib" class="header-option hidden">
+      <option value="0">IdCloud JS</option>
+      <option value="2">SimpleWebAuthn JS</option>
+    </select>
   </h2>
-  </span>
   <div>
     Request:
     <select id="request">
@@ -158,18 +163,17 @@
   </div>
   <table id="config"></table>
   <span class="io-span">
-    <h2 class="io-title">Input - <a href="#"
-        onclick="resetRequests(); configChanged(); readInput(); return false;">Reset</a></h2>
+    <h2 class="io-title not-selectable">Input <span id="reset-input" title="Reset Input JSON" class="clickable">🧽</span></h2>
     <textarea id="input" class="io-textarea">
     </textarea>
   </span>
   <span class="io-span">
-    <h2 class="io-title">Output <button onclick="parseResult()">Parse</button></h2>
+    <h2 class="io-title not-selectable">Output <button onclick="parseResult()">Parse</button></h2>
     <textarea class="result io-textarea" id="output">
     </textarea>
   </span>
   <div>
-    <h2 class="io-title">Parsed Output</h2>
+    <h2 class="not-selectable">Parsed Output</h2>
     <table id="parsed-data" class="result"></table>
   </div>
 
@@ -345,11 +349,11 @@
 
     function getRequest() {
       let reqId = Number.parseInt($("#request").val());
-      let jslibId = Number.parseInt($("#jslib").val());
+      let jsLibId = Number.parseInt($("#jslib").val());
       return {
         request: requests[reqId],
         configurator: requestConfigurators[reqId],
-        operation: operations[reqId + jslibId],
+        operation: operations[reqId + jsLibId],
         class: "." + reqId
       };
     }
@@ -370,15 +374,26 @@
     }
     updateRequest();
     $("#request").on("change", updateRequest);
-    $("#jslib").on("change", () => {
+
+    // JS lib selector
+    function hideJsSelector() {
       updateRequest();
-      $("#jslib-span").hide();
+      $("#jslib").hide();
       $("#jslib-cfg").show();
-    });
+    }
     $("#jslib-cfg").on("click", () => {
       $("#jslib-cfg").hide();
-      $("#jslib-span").show();
+      $("#jslib").show();
       $("#jslib").mousedown();
+    });
+    $("#jslib").on("change", hideJsSelector);
+    $("#jslib-span").on("click", hideJsSelector)
+
+    // Reset input JSON
+    $("#reset-input").on("click", () => {
+      resetRequests();
+      configChanged();
+      readInput();
     });
 
     function setDisabled(selector, isDisabled) {
