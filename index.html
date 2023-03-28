@@ -78,6 +78,19 @@
       width: 95%;
     }
 
+    .not-selectable {
+      user-select: none;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .header-option {
+      font-size: 80%;
+      font-weight: 100;
+    }
+
     @media screen and (max-width: 480px) {
       body {
         font-size: 80%;
@@ -124,14 +137,21 @@
     </tr>
   </table>
 
-  <h2>WebAuthn Operations</h2>
+  <h2>
+    WebAuthn Operations
+    <span id="jslib-cfg" class="not-selectable">⚙️</span>
+    <span id="jslib-span" class="header-option hidden">
+      <select id="jslib">
+        <option value="0">IdCloud JS</option>
+        <option value="2">SimpleWebAuthn JS</option>
+      </select>
+  </h2>
+  </span>
   <div>
     Request:
     <select id="request">
-      <option value="0">Register (IdCloud JS)</option>
-      <option value="1">Login (IdCloud JS)</option>
-      <option value="2">Register (SimpleWebAuthn JS)</option>
-      <option value="3">Login (SimpleWebAuthn JS)</option>
+      <option value="0">Register</option>
+      <option value="1">Login</option>
     </select>
     <button id="run">Execute</button>
     <span id="status" class="result"></span>
@@ -330,12 +350,12 @@
 
     function getRequest() {
       let reqId = Number.parseInt($("#request").val());
-      let reqType = reqId % 2;
+      let jslibId = Number.parseInt($("#jslib").val());
       return {
-        request: requests[reqType],
-        configurator: requestConfigurators[reqType],
-        operation: operations[reqId],
-        class: "." + reqType
+        request: requests[reqId],
+        configurator: requestConfigurators[reqId],
+        operation: operations[reqId * jslibId],
+        class: "." + reqId
       };
     }
 
@@ -355,6 +375,17 @@
     }
     updateRequest();
     $("#request").on("change", updateRequest);
+    $("#jslib").on("change", () => {
+      updateRequest();
+      $("#jslib-span").hide();
+      $("#jslib-cfg").show();
+    });
+    $("#jslib-cfg").on("click", () => {
+      $("#jslib-cfg").hide();
+      $("#jslib-span").show();
+      $("#jslib").mousedown();
+    });
+
     function setDisabled(selector, isDisabled) {
       $(selector).attr("disabled", isDisabled);
     }
