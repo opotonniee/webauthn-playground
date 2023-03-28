@@ -78,6 +78,19 @@
       width: 95%;
     }
 
+    .not-selectable {
+      user-select: none;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .header-option {
+      font-size: 80%;
+      font-weight: 100;
+    }
+
     @media screen and (max-width: 480px) {
       body {
         font-size: 80%;
@@ -124,14 +137,21 @@
     </tr>
   </table>
 
-  <h2>WebAuthn Operations</h2>
+  <h2>
+    WebAuthn Operations
+    <span id="jslib-cfg" class="not-selectable">⚙️</span>
+    <span id="jslib-span" class="header-option hidden">
+      <select id="jslib">
+        <option value="0">IdCloud JS</option>
+        <option value="2">SimpleWebAuthn JS</option>
+      </select>
+  </h2>
+  </span>
   <div>
     Request:
     <select id="request">
-      <option value="0">Register (IdCloud JS)</option>
-      <option value="1">Login (IdCloud JS)</option>
-      <option value="2">Register (SimpleWebAuthn JS)</option>
-      <option value="3">Login (SimpleWebAuthn JS)</option>
+      <option value="0">Register</option>
+      <option value="1">Login</option>
     </select>
     <button id="run">Execute</button>
     <span id="status" class="result"></span>
@@ -164,23 +184,23 @@
 
     let idCloud;
 
-    async function idcregister(options, success, failure) {
+    async function idcRegister(options, success, failure) {
       return idCloud.enroll(options, { getCredName: () => { return "test"; } });
     }
 
-    async function idclogin(options) {
+    async function idcLogin(options) {
       return idCloud.authenticate(options);
     }
 
-    async function swaregister(options, success, failure) {
+    async function swaRegister(options, success, failure) {
       return SimpleWebAuthnBrowser.startRegistration(options);
     }
 
-    async function swalogin(options, success, failure) {
+    async function swaLogin(options, success, failure) {
       return SimpleWebAuthnBrowser.startAuthentication(options);
     }
 
-    let operations = [idcregister, idclogin, swaregister, swalogin];
+    let operations = [idcRegister, idcLogin, swaRegister, swaLogin];
     let operation;
     let RP_NAME = "webauthn-playground";
     let requestConfigurators = [configureRegister, configureLogin];
@@ -191,11 +211,6 @@
         ],
         id: origin.hostname,
         name: RP_NAME
-      },
-      "user": {
-        "name": "",
-        "id": "BaIySnJmQNCQ82satZQ87A",
-        "displayName": "Alex P. Müller"
       },
       "challenge": "AAABeB78HrIemh1jTdJICr_3QG_RMOhp",
       "pubKeyCredParams": [
@@ -226,19 +241,16 @@
         }
       ],
       "excludeCredentials": [],
-      "timeout": 120000,
-      "authenticatorSelection": {},
-      "attestation": "none"
+      "timeout": 120000
     };
     const REQ_LOGIN = {
       "challenge": "AAABeB78HrIemh1jTdJICr_3QG_RMOhp",
       "timeout": 120000,
       "rpId": origin.hostname,
       "allowCredentials": [],
-      "userVerification": "preferred",
       "extensions": {
         "thalesgroup_txn_ext_v1": {
-          "txnDigest": "AAABdeSqQV3OOnltJqFBfrRcBSw9SAIY",
+          "txnDigest": "QhPf8nrP8Ocil/wWdN/rmu4HtFCSOK/zSoNUmhMrc8s=",
           "txnDetails": [
             {
               "key1": "value1"
@@ -286,24 +298,27 @@
     const capitalize = (str, lower = false) =>
       (lower ? str.toLowerCase() : str).replace(/(?:^|\s|["'([{])+\S/g, match => match.toUpperCase());
 
-
-    function configureRegister() {
-      requests[0].authenticatorSelection.residentKey = config.residentKey ? config.residentKey : undefined;
-      requests[0].authenticatorSelection.requireResidentKey = config.residentKey ? config.residentKey == "required" : undefined;
-      requests[0].authenticatorSelection.userVerification = config.userVerification ? config.userVerification : undefined;
-      requests[0].authenticatorSelection.authenticatorAttachment = config.authenticatorAttachment ? config.authenticatorAttachment : undefined;
-      requests[0].attestation = config.attestation;
-      requests[0].user.name = config.userName;
-      requests[0].user.displayName = capitalize(config.userName, true);
-      requests[0].user.id = base64url.encode(new TextEncoder().encode(config.userName));
+    function configureRegister(request) {
+      request.authenticatorSelection = {
+        residentKey: config.residentKey ? config.residentKey : undefined,
+        requireResidentKey: config.residentKey ? config.residentKey == "required" : undefined,
+        userVerification: config.userVerification ? config.userVerification : undefined,
+        authenticatorAttachment: config.authenticatorAttachment ? config.authenticatorAttachment : undefined
+      };
+      request.attestation = config.attestation;
+      request.user = {
+        name: config.userName,
+        displayName: capitalize(config.userName, true),
+        id: base64url.encode(new TextEncoder().encode(config.userName))
+      };
     }
 
-    function configureLogin() {
-      requests[1].allowCredentials = config.credId ? [{
+    function configureLogin(request) {
+      request.allowCredentials = config.credId ? [{
         "type": "public-key",
         "id": config.credId
       }] : [];
-      requests[1].userVerification = config.userVerification ? config.userVerification : undefined;
+      request.userVerification = config.userVerification ? config.userVerification : undefined;
     }
 
     function configChanged() {
@@ -330,17 +345,17 @@
 
     function getRequest() {
       let reqId = Number.parseInt($("#request").val());
-      let reqType = reqId % 2;
+      let jslibId = Number.parseInt($("#jslib").val());
       return {
-        request: requests[reqType],
-        configurator: requestConfigurators[reqType],
-        operation: operations[reqId],
-        class: "." + reqType
+        request: requests[reqId],
+        configurator: requestConfigurators[reqId],
+        operation: operations[reqId + jslibId],
+        class: "." + reqId
       };
     }
 
     function updateConfig(req) {
-      req.configurator();
+      req.configurator(req.request);
       $("#input").val(JSON.stringify(req.request, null, 2));
     }
 
@@ -355,6 +370,17 @@
     }
     updateRequest();
     $("#request").on("change", updateRequest);
+    $("#jslib").on("change", () => {
+      updateRequest();
+      $("#jslib-span").hide();
+      $("#jslib-cfg").show();
+    });
+    $("#jslib-cfg").on("click", () => {
+      $("#jslib-cfg").hide();
+      $("#jslib-span").show();
+      $("#jslib").mousedown();
+    });
+
     function setDisabled(selector, isDisabled) {
       $(selector).attr("disabled", isDisabled);
     }
