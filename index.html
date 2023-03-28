@@ -163,12 +163,18 @@
   </div>
   <table id="config"></table>
   <span class="io-span">
-    <h2 class="io-title not-selectable">Input <span id="reset-input" title="Reset Input JSON" class="clickable">🧽</span></h2>
+    <h2 class="io-title not-selectable">
+      Input
+      <span id="reset-input" title="Reset JSON Input" class="clickable">🧽</span>
+    </h2>
     <textarea id="input" class="io-textarea">
     </textarea>
   </span>
   <span class="io-span">
-    <h2 class="io-title not-selectable">Output <button onclick="parseResult()">Parse</button></h2>
+    <h2 class="io-title not-selectable">
+      Output
+       <span id="parse-output" title="Parse JSON Output" class="clickable">🔎⤵</span>
+      </h2>
     <textarea class="result io-textarea" id="output">
     </textarea>
   </span>
@@ -389,11 +395,16 @@
     $("#jslib").on("change", hideJsSelector);
     $("#jslib-span").on("click", hideJsSelector)
 
-    // Reset input JSON
+    // Reset JSON input
     $("#reset-input").on("click", () => {
       resetRequests();
       configChanged();
       readInput();
+    });
+
+    // Parse JSON output
+    $("#parse-output").on("click", () => {
+      parseResult();
     });
 
     function setDisabled(selector, isDisabled) {
@@ -479,7 +490,11 @@
       $("#parsed-data").empty();
       if (!result) {
         try {
-          result = JSON.parse($("#output").val());
+          let output = $("#output").val();
+          if (!output) {
+            return;
+          }
+          result = JSON.parse(output);
         } catch (error) {
           $("#status").text("Error: JSON result is not valid");
           return;
