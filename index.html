@@ -291,7 +291,8 @@
       .add("residentKey", JsConfig.listType("required", "preferred", "discouraged", ""), "preferred", "FIDO credential filter", "0")
       .add("userVerification", JsConfig.listType("required", "preferred", "discouraged"), "preferred", "FIDO credential filter", "0 1")
       .add("attestation", JsConfig.listType("none", "direct", "indirect"), "none", "Requested FIDO attestation type", "0")
-      .add("credId", JsConfig.textType(" *[^ ]* *"), "", "Expected credential id", "1");
+      .add("credId", JsConfig.textType(" *[^ ]* *"), "", "Expected credential id", "1")
+      .add("useCredId", JsConfig.boolType(), true, "Use last credential id", "1");
     let config = jsc._;
 
     async function showSupport() {
@@ -329,7 +330,8 @@
     }
 
     function configureLogin(request) {
-      request.allowCredentials = config.credId ? [{
+      setDisabled("#credId", !$("#useCredId").is(":checked"));
+      request.allowCredentials = config.useCredId && config.credId ? [{
         "type": "public-key",
         "id": config.credId
       }] : [];
