@@ -200,7 +200,15 @@
 
     let idCloud;
 
+
+    function validateRegister(options) {
+      if (!config.userName) {
+        throw "User name is mandatory"
+      }
+    }
+
     async function idcRegister(options) {
+      validateRegister(options);
       return idCloud.enroll(options, { getCredName: () => { return "test"; } });
     }
 
@@ -209,6 +217,7 @@
     }
 
     async function swaRegister(options) {
+      validateRegister(options);
       return SimpleWebAuthnBrowser.startRegistration(options);
     }
 
@@ -327,7 +336,7 @@
         authenticatorAttachment: config.authenticatorAttachment ? config.authenticatorAttachment : undefined
       };
       request.attestation = config.attestation;
-      request.user = {
+      request.user = { // all fields are REQUIRED
         name: config.userName,
         displayName: capitalize(config.userName, true),
         id: config.userName // this is the read user identifier
