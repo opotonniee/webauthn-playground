@@ -36,8 +36,7 @@
     }
 
     #config,
-    #parsed-data,
-    #userLogin {
+    #parsed-data {
       width: 100%;
     }
 
@@ -48,25 +47,20 @@
     }
 
     #config td:first-child,
-    #parsed-data td:first-child,
-    #userLogin td:first-child {
+    #parsed-data td:first-child {
       width: fit-content;
     }
 
-    #config input,
-    #userLogin input {
+    #config input {
       margin: 0;
       display: initial;
     }
 
     #credId,
-    #userName {
+    #userName, 
+    #userLogin input {
       width: 98%;
       max-width: 800px;
-    }
-
-    #userLogin input {
-      width: 200px;
     }
 
     .io-span {
@@ -168,12 +162,6 @@
     </select>
     <button id="run">Execute</button>
     <span id="status" class="result"></span>
-    <table id="userLogin">
-      <tr>
-        <td>Auto fill:</td>
-        <td><input type="text" autoComplete="username webauthn" /></td>
-      </tr>
-    </table>
   </div>
   <table id="config"></table>
   <span class="io-span">
@@ -390,7 +378,7 @@
     jsc.onChange(configChanged)
       .setConfig(localStorage.getItem("webauthn_pg_tests"))
       .showConfigTable($("#config"), false);
-
+    $("#config").prepend('<tr id="userLogin"><td>Auto fill:</td><td><input type="text" autoComplete="username webauthn" /></td></tr>');
 
     function stringifyUint8ArrayAsBase64(key, value) {
       if (value.buffer && value.byteLength) {
