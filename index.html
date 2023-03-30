@@ -212,8 +212,8 @@
       return SimpleWebAuthnBrowser.startRegistration(options);
     }
 
-    async function swaLogin(options) {
-      return SimpleWebAuthnBrowser.startAuthentication(options);
+    async function swaLogin(options, reqOptions) {
+      return SimpleWebAuthnBrowser.startAuthentication(options, reqOptions !== undefined);
     }
 
     let operations = [idcRegister, idcLogin, swaRegister, swaLogin];
