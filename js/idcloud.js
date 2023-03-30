@@ -61,8 +61,7 @@ class IdCloud {
   async enroll(credentialOptions, options) {
     credentialOptions.challenge = new Uint8Array(this._options.base64Decode(
       credentialOptions.challenge));
-    credentialOptions.user.id = Uint8Array.from(
-      credentialOptions.user.id, c => c.charCodeAt(0));
+    credentialOptions.user.id = this._options.base64Decode(credentialOptions.user.id);
     credentialOptions.excludeCredentials.forEach(excludeCredential => {
       excludeCredential.id = this._options.base64Decode(excludeCredential.id);
     });

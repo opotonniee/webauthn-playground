@@ -339,7 +339,10 @@
       request.user = { // all fields are REQUIRED
         name: config.userName,
         displayName: capitalize(config.userName, true),
-        id: config.userName // this is the read user identifier
+        // id can be returned as the userHandle in authentication response (resident key?),
+        // Authenticators overwrite existing discoverable credentials that have the same rp.id and user.id
+        // IdCloud provides it as a base64 encoded bytes array, while SimpleWebAuthn uses the string's bytes
+        id: base64url.encode(Uint8Array.from(config.userName, c => c.charCodeAt(0)))
       };
     }
 
