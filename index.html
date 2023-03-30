@@ -36,7 +36,8 @@
     }
 
     #config,
-    #parsed-data {
+    #parsed-data,
+    #userLogin {
       width: 100%;
     }
 
@@ -47,11 +48,13 @@
     }
 
     #config td:first-child,
-    #parsed-data td:first-child {
+    #parsed-data td:first-child,
+    #userLogin td:first-child {
       width: fit-content;
     }
 
-    #config input {
+    #config input,
+    #userLogin input {
       margin: 0;
       display: initial;
     }
@@ -60,6 +63,10 @@
     #userName {
       width: 98%;
       max-width: 800px;
+    }
+
+    #userLogin input {
+      width: 200px;
     }
 
     .io-span {
@@ -161,6 +168,12 @@
     </select>
     <button id="run">Execute</button>
     <span id="status" class="result"></span>
+    <table id="userLogin">
+      <tr>
+        <td>Auto fill:</td>
+        <td><input type="text" autoComplete="username webauthn" /></td>
+      </tr>
+    </table>
   </div>
   <table id="config"></table>
   <span class="io-span">
@@ -199,19 +212,19 @@
 
     let idCloud;
 
-    async function idcRegister(options, success, failure) {
+    async function idcRegister(options) {
       return idCloud.enroll(options, { getCredName: () => { return "test"; } });
     }
 
-    async function idcLogin(options) {
-      return idCloud.authenticate(options);
+    async function idcLogin(options, reqOptions) {
+      return idCloud.authenticate(options, reqOptions);
     }
 
-    async function swaRegister(options, success, failure) {
+    async function swaRegister(options) {
       return SimpleWebAuthnBrowser.startRegistration(options);
     }
 
-    async function swaLogin(options, success, failure) {
+    async function swaLogin(options) {
       return SimpleWebAuthnBrowser.startAuthentication(options);
     }
 
@@ -286,15 +299,16 @@
     resetRequests();
 
     let jsc = new JsConfig(true)
-      .add("userName", JsConfig.textType(".*"), "alex muller", "user name", "0 1")
+      .add("userName", JsConfig.textType(".*"), "alex muller", "user name", "0")
+      .add("credId", JsConfig.textType(" *[^ ]* *"), "", "Expected credential id", "1")
+      .add("autoFill", JsConfig.boolType(), false, "Use last credential id", "1")
       .add("authenticatorAttachment", JsConfig.listType("platform", "cross-platform", ""), "", "Authenticator type", "0")
       .add("residentKey", JsConfig.listType("required", "preferred", "discouraged", ""), "preferred", "FIDO credential filter", "0")
       .add("userVerification", JsConfig.listType("required", "preferred", "discouraged"), "preferred", "FIDO credential filter", "0 1")
-      .add("attestation", JsConfig.listType("none", "direct", "indirect"), "none", "Requested FIDO attestation type", "0")
-      .add("credId", JsConfig.textType(" *[^ ]* *"), "", "Expected credential id", "1")
-      .add("useCredId", JsConfig.boolType(), true, "Use last credential id", "1");
+      .add("attestation", JsConfig.listType("none", "direct", "indirect"), "none", "Requested FIDO attestation type", "0");
     let config = jsc._;
 
+    let isAutoFillSupported = false;
     async function showSupport() {
       idCloud = new IdCloud({
         fido: {
@@ -303,7 +317,8 @@
         }
       });
       $("#idcwa").text(await idCloud.isFido2Available() ? "✅" : "❌");
-      $("#idcaf").text(await idCloud.isAutoFillSupported() ? "✅" : "❌");
+      isAutoFillSupported = await idCloud.isAutoFillSupported();
+      $("#idcaf").text(isAutoFillSupported ? "✅" : "❌");
       $("#idcpf").text("N/A");
       $("#swawa").text(SimpleWebAuthnBrowser.browserSupportsWebAuthn() ? "✅" : "❌");
       $("#swaaf").text(await SimpleWebAuthnBrowser.browserSupportsWebAuthnAutofill() ? "✅" : "❌");
@@ -315,6 +330,8 @@
       (lower ? str.toLowerCase() : str).replace(/(?:^|\s|["'([{])+\S/g, match => match.toUpperCase());
 
     function configureRegister(request) {
+      $("#userLogin").hide()
+      cancelAutoFill();
       request.authenticatorSelection = {
         residentKey: config.residentKey ? config.residentKey : undefined,
         requireResidentKey: config.residentKey ? config.residentKey == "required" : undefined,
@@ -325,17 +342,44 @@
       request.user = {
         name: config.userName,
         displayName: capitalize(config.userName, true),
-        id: base64url.encode(new TextEncoder().encode(config.userName))
+        id: config.userName // this is the read user identifier
       };
     }
 
+    let autoFillAbortController;
+    function cancelAutoFill() {
+      if (autoFillAbortController) {
+        // TODO cancel
+        !autoFillAbortController.aborted && autoFillAbortController.abort()
+        autoFillAbortController = undefined;
+      }
+    }
+
     function configureLogin(request) {
-      setDisabled("#credId", !$("#useCredId").is(":checked"));
-      request.allowCredentials = config.useCredId && config.credId ? [{
+      cancelAutoFill();
+      let useAutoFill = config.autoFill && isAutoFillSupported;
+      $("#credId").closest('tr').toggle(!useAutoFill);
+      $("#autoFill").closest('tr').toggle(isAutoFillSupported);
+      $("#userLogin").toggle(useAutoFill);
+      request.allowCredentials = !useAutoFill && config.credId ? [{
         "type": "public-key",
         "id": config.credId
       }] : [];
       request.userVerification = config.userVerification ? config.userVerification : undefined;
+      if (useAutoFill) {
+        // https://web.dev/passkey-form-autofill/
+        // https://developers.yubico.com/WebAuthn/Concepts/Passkey_Autofill/Implementation_Guidance/Simple_Autofill_Flow.html
+        // launch autofill
+        autoFillAbortController = new AbortController();
+        setTimeout(() => {
+          console.log("start auto fill");
+          $("#userLogin input").focus();
+          runRequest(/*{
+            signal: autoFillAbortController.signal,
+            mediation: "conditional"
+          }*/);
+        }, 500);
+      }
     }
 
     function configChanged() {
@@ -549,7 +593,7 @@
 
     }
 
-    $("#run").on("click", async () => {
+    async function runRequest(reqOptions) {
       $(".result").empty();
       $(".result").val("");
       try {
@@ -557,14 +601,23 @@
         if (!jsonInput) {
           return;
         }
-        let output = await operation(jsonInput);
+        let output = await operation(jsonInput, reqOptions);
         $("#status").text("ok");
         $("#output").val(JSON.stringify(output, null, 2));
         parseResult(output);
       } catch (err) {
-        $("#status").text("error: " + err);
-        console.error(err);
+        if (reqOptions) {
+          console.error("auto fill cancelled");
+        } else {
+          $("#status").text("error: " + err);
+          console.error(err);
+        }
       }
+    }
+
+    $("#run").on("click", () => {
+      cancelAutoFill();
+      runRequest()
     });
 
   </script>

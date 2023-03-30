@@ -54,7 +54,7 @@ class IdCloud {
   }
 
   async isAutoFillSupported() {
-    return PublicKeyCredential.isConditionalMediationAvailable &&
+    return PublicKeyCredential.isConditionalMediationAvailable == true &&
      PublicKeyCredential.isConditionalMediationAvailable();
   }
 
