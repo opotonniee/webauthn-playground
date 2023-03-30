@@ -1,5 +1,6 @@
 /*
  * Base64URL-ArrayBuffer
+ *
  * https://github.com/herrjemand/Base64URL-ArrayBuffer
  *
  * Copyright (c) 2017 Yuriy Ackermann <ackermann.yuriy@gmail.com>
