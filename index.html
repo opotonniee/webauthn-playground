@@ -57,7 +57,7 @@
     }
 
     #credId,
-    #userName, 
+    #userName,
     #userLogin input {
       width: 98%;
       max-width: 800px;
@@ -362,10 +362,10 @@
         setTimeout(() => {
           console.log("start auto fill");
           $("#userLogin input").focus();
-          runRequest(/*{
+          runRequest({
             signal: autoFillAbortController.signal,
             mediation: "conditional"
-          }*/);
+          });
         }, 500);
       }
     }
