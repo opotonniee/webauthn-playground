@@ -203,7 +203,7 @@
 
     function validateRegister(options) {
       if (!config.userName) {
-        throw "User name is mandatory"
+        throw "User name is mandatory";
       }
     }
 
@@ -327,7 +327,7 @@
       (lower ? str.toLowerCase() : str).replace(/(?:^|\s|["'([{])+\S/g, match => match.toUpperCase());
 
     function configureRegister(request) {
-      $("#userLogin").hide()
+      $("#userLogin").hide();
       cancelAutoFill();
       request.authenticatorSelection = {
         residentKey: config.residentKey ? config.residentKey : undefined,
@@ -350,7 +350,7 @@
     function cancelAutoFill() {
       if (autoFillAbortController) {
         // TODO cancel
-        !autoFillAbortController.aborted && autoFillAbortController.abort()
+        !autoFillAbortController.aborted && autoFillAbortController.abort();
         autoFillAbortController = undefined;
       }
     }
@@ -444,7 +444,7 @@
       $("#jslib").mousedown();
     });
     $("#jslib").on("change", hideJsSelector);
-    $("#jslib-span").on("click", hideJsSelector)
+    $("#jslib-span").on("click", hideJsSelector);
 
     // Reset JSON input
     $("#reset-input").on("click", () => {
@@ -480,9 +480,11 @@
     });
 
     function parseResult(result) {
+
       function addRow(name, value) {
         $("#parsed-data").append(`<tr><td>${name}: </td><td>${value}</td></tr>`);
       }
+
       function addAuthData(authenticatorData) {
         /*
         rpIdHash: 32 	SHA-256 hash of the RP ID the credential is scoped to.
@@ -538,6 +540,17 @@
         }
         addRow("Authenticator Data", authDesc);
       }
+
+      function showX5c(x5c) {
+        let res = "<br/>Certificates: <ul>";
+        for (cert of x5c) {
+          const b64cert = base64url.encode(cert).replaceAll("_", "/").replaceAll("-", "+");
+          res += `<li><a target="_blank" href="https://gchq.github.io/CyberChef/#recipe=Parse_X.509_certificate('Raw')&input=${encodeURIComponent(b64cert)}">🔎</a> - <a target="_blank" href="https://opotonniee.github.io/fido-mds-explorer/?x5c=${b64cert}">${b64cert}</a></li>`;
+        }
+        res += "</ul>";
+        return res;
+      }
+
       $("#parsed-data").empty();
       if (!result) {
         try {
@@ -575,12 +588,19 @@
               stringifyUint8ArrayAsBase64, 2) + "</pre>";
           } else if (attObj.fmt == "fido-u2f") {
             attDesc += "<br/>Signature: " + base64url.encode(attObj.attStmt.sig);
-            attDesc += "<br/>Certificates: <ul>";
-            for (cert of attObj.attStmt.x5c) {
-              const b64cert = base64url.encode(cert).replaceAll("_", "/").replaceAll("-", "+");
-              attDesc += `<li><a target="_blank" href="https://gchq.github.io/CyberChef/#recipe=Parse_X.509_certificate('Raw')&input=${encodeURIComponent(b64cert)}">🔎</a> - <a target="_blank" href="https://opotonniee.github.io/fido-mds-explorer/?x5c=${b64cert}">${b64cert}</a></li>`;
+            attDesc += showX5c(attObj.attStmt.x5c);
+          } else if (attObj.fmt == "packed") {
+            attDesc = "Format: " + attObj.fmt + (attObj.attStmt.x5c ? " (Full)" : " (Self)") + "<br/>";
+            if (attObj.attStmt.x5c) {
+              attDesc = "Format: packed (Full)<br/>";
+              attDesc += showX5c(attObj.attStmt.x5c);
+            } else if (attObj.attStmt.ecdaaKeyId) {
+              attDesc = "Format: packed (ecdaa)<br/>";
+              attDesc += "<pre>" + JSON.stringify(attObj.attStmt, stringifyUint8ArrayAsBase64, 2) + "</pre>";
+            } else {
+              attDesc = "Format: packed (self)<br/>";
+              attDesc += "<pre>" + JSON.stringify(attObj.attStmt, stringifyUint8ArrayAsBase64, 2) + "</pre>";
             }
-            attDesc += "</ul>";
           } else {
             attDesc += "<pre>" + JSON.stringify(attObj.attStmt, stringifyUint8ArrayAsBase64, 2) + "</pre>";
           }
@@ -620,7 +640,7 @@
 
     $("#run").on("click", () => {
       cancelAutoFill();
-      runRequest()
+      runRequest();
     });
 
   </script>
