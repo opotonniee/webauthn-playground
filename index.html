@@ -32,12 +32,8 @@
     }
 
     #about {
-      float: right;
-    }
-
-    #about a {
-      color: white;
-      text-decoration: none;
+      position: absolute;
+      right: 10px;
     }
 
     #about a img {
@@ -120,6 +116,11 @@
         font-size: 80%;
       }
 
+      #about a img {
+        width: 24px;
+        height: 24px;
+      }
+
       .io-title {
         width: initial;
       }
@@ -154,23 +155,24 @@
   </h1>
   <h2>Browser Capabilities</h2>
   <table id="support">
-    <tr class="jslib0 jslib2">
+    <tr class="support-jslib jslib0 jslib2">
       <th></th>
-      <th>WebAuthn</th>
+      <th class="support-jslib jslib0">WebAuthn w/ config</th>
+      <th class="support-jslib jslib2">WebAuthn</th>
       <th>Auto-fill</th>
-      <th>Platform</th>
+      <th class="support-jslib jslib2">Platform</th>
     </tr>
-    <tr class="jslib0">
+    <tr class="support-jslib jslib0">
       <td>Your browser supports</td>
       <td id="idcwa"></td>
       <td id="idcaf"></td>
-      <td id="idcpf"></td>
+      <td id="idcpf" class="support-jslib"></td>
     </tr>
-    <tr class="jslib2">
+    <tr class="support-jslib jslib2">
       <td>Your browser supports</td>
       <td id="swawa"></td>
       <td id="swaaf"></td>
-      <td id="swapf"></td>
+      <td id="swapf" class="support-jslib jslib2"></td>
     </tr>
   </table>
 
@@ -198,7 +200,7 @@
   <span class="io-span">
     <h2 class="io-title not-selectable">
       Output
-      <span id="parse-output" title="Parse JSON Output" class="clickable">🔎⤵</span>
+      <span id="parse-output" title="Parse JSON Output" class="clickable">🔎</span>
     </h2>
     <textarea class="result io-textarea" id="output">
     </textarea>
@@ -330,8 +332,8 @@
       $("#swawa").text(SimpleWebAuthnBrowser.browserSupportsWebAuthn() ? "✅" : "❌");
       $("#swaaf").text(await SimpleWebAuthnBrowser.browserSupportsWebAuthnAutofill() ? "✅" : "❌");
       $("#swapf").text(await SimpleWebAuthnBrowser.platformAuthenticatorIsAvailable() ? "✅" : "❌");
-      $("#support tr").hide();
-      $("#support tr.jslib" + getJsLib()).show();
+      $("#support .support-jslib").hide();
+      $("#support .jslib" + getJsLib()).show();
     }
     showSupport();
 

@@ -9,6 +9,7 @@ This application helps to visualize the [WebAuthn](https://www.w3.org/TR/webauth
 The tool can be configured to use either the [SimpleWebAuthn](https://simplewebauthn.dev/) browser library, or the [Thales IdCloud](https://developer.dbp.thalescloud.io/docs/idcloud-getting-started) library. The behavior is expected to be similar in both configurations.
 
 This is a **client-only tool**: there is no server involved.
+
 ## Usage
 
 * Register (create credential) and Login (get credential) operations can be configured with dropdown / checkbox settings, the JSON request is automatically updated and displayed
