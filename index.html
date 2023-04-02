@@ -556,6 +556,9 @@
           JSON.parse(new TextDecoder().decode(base64url.decode(result.response.clientDataJSON))),
           undefined, 2) + "</pre>");
       }
+      if (result.response.userHandle) {
+        addRow("User Handle", new TextDecoder().decode(base64url.decode(result.response.userHandle)));
+      }
       if (result.response.authenticatorData) {
         addAuthData(base64url.decode(result.response.authenticatorData));
       }
