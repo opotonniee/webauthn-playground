@@ -31,6 +31,20 @@
       padding: 5px;
     }
 
+    #about {
+      float: right;
+    }
+
+    #about a {
+      color: white;
+      text-decoration: none;
+    }
+
+    #about a img {
+      width: 32px;
+      height: 32px;
+    }
+
     #support td:not(:first-child) {
       text-align: center;
     }
@@ -88,12 +102,13 @@
     }
 
     .header-option {
-      font-size: 80%;
+      font-size: medium;
       font-weight: 100;
     }
 
     .clickable {
       margin: 0 5px;
+      font-size: 24px;
     }
 
     .clickable:hover {
@@ -124,22 +139,35 @@
 
 <body>
 
-  <h2>Support of WebAuthn</h2>
+  <h1 class="not-selectable">
+    <span id="jslib-span">WebAuthn Playground</span>
+    <span id="jslib-cfg" title="Configuration" class="clickable">⚙️</span>
+    <select id="jslib" class="header-option hidden">
+      <option value="0">IdCloud JS</option>
+      <option value="2">SimpleWebAuthn JS</option>
+    </select>
+    <span id="about">
+      <a href="https://github.com/opotonniee/webauthn-playground">
+        <img class="icon" src="img/github-mark.svg" />
+      </a>
+    </span>
+  </h1>
+  <h2>Browser Capabilities</h2>
   <table id="support">
-    <tr>
-      <th>Lib</th>
+    <tr class="jslib0 jslib2">
+      <th></th>
       <th>WebAuthn</th>
-      <th>Autofill</th>
-      <th>Paltform</th>
+      <th>Auto-fill</th>
+      <th>Platform</th>
     </tr>
-    <tr>
-      <td>IdCloud</td>
+    <tr class="jslib0">
+      <td>Your browser supports</td>
       <td id="idcwa"></td>
       <td id="idcaf"></td>
       <td id="idcpf"></td>
     </tr>
-    <tr>
-      <td>SimpleWebAuthn</td>
+    <tr class="jslib2">
+      <td>Your browser supports</td>
       <td id="swawa"></td>
       <td id="swaaf"></td>
       <td id="swapf"></td>
@@ -147,12 +175,7 @@
   </table>
 
   <h2 class="not-selectable">
-    <span id="jslib-span">WebAuthn Operations</span>
-    <span id="jslib-cfg" title="Configuration" class="clickable">⚙️</span>
-    <select id="jslib" class="header-option hidden">
-      <option value="0">IdCloud JS</option>
-      <option value="2">SimpleWebAuthn JS</option>
-    </select>
+    <span>WebAuthn Operations</span>
   </h2>
   <div>
     Request:
@@ -184,10 +207,6 @@
     <h2 class="not-selectable">Parsed Output</h2>
     <table id="parsed-data" class="result"></table>
   </div>
-
-  <footer>
-    <a href="https://github.com/opotonniee/webauthn-playground">Source code on GitHub</a>
-  </footer>
 
   <script src="js/jquery-3.6.4.slim.min.js"></script>
   <script src="js/simplewebauthn.min.js"></script>
@@ -244,19 +263,10 @@
           alg: -257
         }, {
           type: "public-key",
-          alg: -258
-        }, {
-          type: "public-key",
-          alg: -259
-        }, {
-          type: "public-key",
           alg: -35
         }, {
           type: "public-key",
           alg: -36
-        }, {
-          type: "public-key",
-          alg: -65535
         }, {
           type: "public-key",
           alg: -7
@@ -320,6 +330,8 @@
       $("#swawa").text(SimpleWebAuthnBrowser.browserSupportsWebAuthn() ? "✅" : "❌");
       $("#swaaf").text(await SimpleWebAuthnBrowser.browserSupportsWebAuthnAutofill() ? "✅" : "❌");
       $("#swapf").text(await SimpleWebAuthnBrowser.platformAuthenticatorIsAvailable() ? "✅" : "❌");
+      $("#support tr").hide();
+      $("#support tr.jslib" + getJsLib()).show();
     }
     showSupport();
 
@@ -404,9 +416,13 @@
       return Array.from(u8array).map(b => ("0" + b.toString(16)).slice(-2)).join('');
     }
 
+    function getJsLib() {
+      return Number.parseInt($("#jslib").val());
+    }
+
     function getRequest() {
       let reqId = Number.parseInt($("#request").val());
-      let jsLibId = Number.parseInt($("#jslib").val());
+      let jsLibId = getJsLib();
       return {
         request: requests[reqId],
         configurator: requestConfigurators[reqId],
@@ -428,6 +444,7 @@
       operation = req.operation;
       $(req.class).show();
       updateConfig(req);
+      showSupport();
     }
     updateRequest();
     $("#request").on("change", updateRequest);
@@ -451,6 +468,10 @@
       resetRequests();
       configChanged();
       readInput();
+      $("#status").text("");
+      $("#output").val("");
+      $("#parsed-data").empty();
+
     });
 
     // Parse JSON output
