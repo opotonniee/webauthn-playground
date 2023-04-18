@@ -210,7 +210,7 @@
     <table id="parsed-data" class="result"></table>
   </div>
 
-  <script src="js/jquery-3.6.4.slim.min.js"></script>
+  <script src="js/cash-8.1.4.min.js"></script>
   <script src="js/simplewebauthn.min.js"></script>
   <script src="js/base64url-arraybuffer.js"></script>
   <script src="js/idcloud.js"></script>
@@ -363,7 +363,6 @@
     let autoFillAbortController;
     function cancelAutoFill() {
       if (autoFillAbortController) {
-        // TODO cancel
         !autoFillAbortController.aborted && autoFillAbortController.abort();
         autoFillAbortController = undefined;
       }
@@ -387,7 +386,7 @@
         autoFillAbortController = new AbortController();
         setTimeout(() => {
           console.log("start auto fill");
-          $("#userLogin input").focus();
+          $("#userLogin input")[0].focus();
           runRequest({
             signal: autoFillAbortController.signal,
             mediation: "conditional"
@@ -460,7 +459,7 @@
     $("#jslib-cfg").on("click", () => {
       $("#jslib-cfg").hide();
       $("#jslib").show();
-      $("#jslib").mousedown();
+      $("#jslib")[0].focus();
     });
     $("#jslib").on("change", hideJsSelector);
     $("#jslib-span").on("click", hideJsSelector);
@@ -482,7 +481,7 @@
     });
 
     function setDisabled(selector, isDisabled) {
-      $(selector).attr("disabled", isDisabled);
+      $(selector).attr("disabled", isDisabled ? "disabled" : undefined);
     }
 
     function readInput() {
