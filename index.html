@@ -93,13 +93,13 @@
       user-select: none;
     }
 
-    .hidden {
-      display: none;
-    }
-
     .header-option {
       font-size: medium;
       font-weight: 100;
+    }
+
+    .setting {
+      display: none;
     }
 
     .clickable {
@@ -141,9 +141,9 @@
 <body>
 
   <h1 class="not-selectable">
-    <span id="jslib-span">WebAuthn Playground</span>
-    <span id="jslib-cfg" title="Configuration" class="clickable">⚙️</span>
-    <select id="jslib" class="header-option hidden">
+    <span id="title">WebAuthn Playground</span>
+    <span id="settings" title="Configuration" class="clickable">⚙️</span>
+    <select id="js-lib" class="header-option setting">
       <option value="0">IdCloud JS</option>
       <option value="2">SimpleWebAuthn JS</option>
     </select>
@@ -418,7 +418,7 @@
     }
 
     function getJsLib() {
-      return Number.parseInt($("#jslib").val());
+      return Number.parseInt($("#js-lib").val());
     }
 
     function getRequest() {
@@ -451,18 +451,17 @@
     $("#request").on("change", updateRequest);
 
     // JS lib selector
-    function hideJsSelector() {
+    function hideSettings() {
       updateRequest();
-      $("#jslib").hide();
-      $("#jslib-cfg").show();
+      $(".setting").hide();
+      $("#settings").show();
     }
-    $("#jslib-cfg").on("click", () => {
-      $("#jslib-cfg").hide();
-      $("#jslib").show();
-      $("#jslib")[0].focus();
+    $("#settings").on("click", () => {
+      $("#settings").hide();
+      $(".setting").show();
     });
-    $("#jslib").on("change", hideJsSelector);
-    $("#jslib-span").on("click", hideJsSelector);
+    $("#js-lib").on("change", hideSettings);
+    $("#title").on("click", hideSettings);
 
     // Reset JSON input
     $("#reset-input").on("click", () => {
