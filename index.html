@@ -309,6 +309,7 @@
 
     let jsc = new JsConfig(true)
       .add("userName", JsConfig.textType(".*"), "alex muller", "user name", "0")
+      .add("textualUserId", JsConfig.boolType(), false, "Compute a textual user.id", "") // no displayed, automatically set based on selected lib
       .add("credId", JsConfig.textType(" *[^ ]* *"), "", "Expected credential id", "1")
       .add("autoFill", JsConfig.boolType(), false, "Use last credential id", "1")
       .add("authenticatorAttachment", JsConfig.listType("platform", "cross-platform", ""), "", "Authenticator type", "0")
@@ -353,10 +354,10 @@
       request.user = { // all fields are REQUIRED
         name: config.userName,
         displayName: capitalize(config.userName, true),
-        // id can be returned as the userHandle in authentication response (resident key?),
+        // user.id is a byte buffer, and can be returned as the userHandle in authentication response,
         // Authenticators overwrite existing discoverable credentials that have the same rp.id and user.id
-        // IdCloud provides it as a base64 encoded bytes array, while SimpleWebAuthn uses the string's bytes
-        id: base64url.encode(Uint8Array.from(config.userName, c => c.charCodeAt(0)))
+        // NOte: IdCloud provides it as a base64 encoded bytes array, while SimpleWebAuthn uses the string's bytes
+        id: config.textualUserId ? config.userName : base64url.encode(new TextEncoder().encode(config.userName))
       };
     }
 
@@ -424,6 +425,7 @@
     function getRequest() {
       let reqId = Number.parseInt($("#request").val());
       let jsLibId = getJsLib();
+      config.textualUserId = jsLibId == 2; // SimpleWebAuthn uses textual user id
       return {
         request: requests[reqId],
         configurator: requestConfigurators[reqId],
@@ -591,7 +593,9 @@
           undefined, 2) + "</pre>");
       }
       if (result.response.userHandle) {
-        addRow("User Handle", new TextDecoder().decode(base64url.decode(result.response.userHandle)));
+        addRow("User Handle", config.textualUserId ? 
+          result.response.userHandle 
+          : new TextDecoder().decode(base64url.decode(result.response.userHandle)));
       }
       if (result.response.authenticatorData) {
         addAuthData(base64url.decode(result.response.authenticatorData));

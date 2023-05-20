@@ -1,7 +1,7 @@
 /*
  * IdCloud.js
  *
- * (c) Thales DIS, 2021
+ * (c) Thales DIS, 2021-2023
  *
  * By default, it uses base64url from https://github.com/herrjemand/Base64URL-ArrayBuffer
  * It can be overridden by defining base64Decode and base64Encode methods in constructor options
@@ -15,32 +15,40 @@ class IdCloud {
     return {
       base64Decode: base64url.decode,
       base64Encode: base64url.encode,
+      isUserIdTextual: false, // should always be false: IdCloud provides a base64-encoded byte array
       fido: {
         usePlatformFIDO: true,
         useRoamingFIDO: true
       }
     };
   }
+  
+  static _DEBUG = true;
+  static _debug(...args) {
+    if (IdCloud._DEBUG) {
+      console.debug(...args);
+    }
+  }
 
   constructor(options) {
     this._options = {};
     Object.assign(this._options, IdCloud._DEFAULT_OPTIONS);
     options ? Object.assign(this._options, options) : false;
-    //console.log(JSON.stringify(this._options));
+    this.constructor._debug("[IdCloud]", JSON.stringify(this._options));
     this.isFido2Available().then(yes => {
       if (!yes) {
-        console.warn("!! WebAuthn not available");
+        console.warn("!! WebAuthn is not available");
         let webAuthnElts = document.getElementsByClassName("idcloud-webauthn");
         webAuthnElts.length && webAuthnElts.forEach((elt) => { elt.style.display = "none"; });
       } else {
-        //console.debug("WebAuthn is available :)");
+        this.constructor._debug("[IdCloud] WebAuthn is available :)");
       }
     });
   }
 
   async isFido2Available() {
-    let usePlatformFIDO = this._options.fido.usePlatformFIDO;
-    let useRoamingFIDO = this._options.fido.useRoamingFIDO;
+    const usePlatformFIDO = this._options.fido.usePlatformFIDO;
+    const useRoamingFIDO = this._options.fido.useRoamingFIDO;
     return new Promise(function (resolve, reject) {
       let fidoSupported = (typeof window.PublicKeyCredential === "function");
       if (fidoSupported && !useRoamingFIDO && usePlatformFIDO) {
@@ -61,29 +69,29 @@ class IdCloud {
   async enroll(credentialOptions, options) {
     credentialOptions.challenge = new Uint8Array(this._options.base64Decode(
       credentialOptions.challenge));
-    credentialOptions.user.id = this._options.base64Decode(credentialOptions.user.id);
+    credentialOptions.user.id = this._options.isUserIdTextual ?
+      new TextEncoder().encode(credentialOptions.user.id)
+      : this._options.base64Decode(credentialOptions.user.id);
     credentialOptions.excludeCredentials.forEach(excludeCredential => {
       excludeCredential.id = this._options.base64Decode(excludeCredential.id);
     });
     const encode = this._options.base64Encode;
 
-    let credential = await navigator.credentials.create({ publicKey: credentialOptions });
-    //console.debug("make credential ok: ", JSON.stringify(credential));
+    const credential = await navigator.credentials.create({ publicKey: credentialOptions });
+    this.constructor._debug("[IdCloud] Create credential ok:", credential);
     let credName = navigator.userAgent.replaceAll(/[0-9;:\.\/\(\)]/ig, "").split(' ').slice(1, 4).join(" ");
     if (options && options.getCredName) {
-      let defName = credName;
+      const defName = credName;
       credName = options.getCredName(defName);
       credName = credName ? credName.trim() : null;
       if (!credName) {
         credName = defName;
       }
     }
-    let rawId = new Uint8Array(credential.rawId);
-    let attData = new Uint8Array(credential.response.attestationObject);
-    let clientDataJSON = new Uint8Array(credential.response.clientDataJSON);
-    let response = {
-      attestationObject: encode(attData),
-      clientDataJSON: encode(clientDataJSON)
+    const rawId = encode(new Uint8Array(credential.rawId));
+    const response = {
+      attestationObject: encode(new Uint8Array(credential.response.attestationObject)),
+      clientDataJSON: encode(new Uint8Array(credential.response.clientDataJSON))
     };
 
     if (credential.response.getAuthenticatorData) {
@@ -97,7 +105,7 @@ class IdCloud {
     }
     return {
       id: credential.id,
-      rawId: encode(rawId),
+      rawId: rawId,
       type: credential.type,
       response: response,
       // Add thales extension with friendly name
@@ -121,23 +129,27 @@ class IdCloud {
     }
     const encode = this._options.base64Encode;
 
-    let getOptions = credentialReqOptions ? credentialReqOptions : {};
+    const getOptions = credentialReqOptions ? credentialReqOptions : {};
     getOptions.publicKey = assertionOptions;
-    let assertion = await navigator.credentials.get(getOptions);
-    let rawId = new Uint8Array(assertion.rawId);
-    let authData = new Uint8Array(assertion.response.authenticatorData);
-    let clientDataJSON = new Uint8Array(assertion.response.clientDataJSON);
-    let sig = new Uint8Array(assertion.response.signature);
-    let userHandle = new Uint8Array(assertion.response.userHandle);
+    const assertion = await navigator.credentials.get(getOptions);
+    this.constructor._debug("[IdCloud] Get credential ok:", assertion);
+    
+    const rawId = encode(new Uint8Array(assertion.rawId));
+    const authData = encode(new Uint8Array(assertion.response.authenticatorData));
+    const clientDataJSON = encode(new Uint8Array(assertion.response.clientDataJSON));
+    const signature = encode(new Uint8Array(assertion.response.signature));
+    const userHandle = this._options.isUserIdTextual ?
+      new TextDecoder().decode(assertion.response.userHandle)
+      : encode(new Uint8Array(assertion.response.userHandle));
     return {
       id: assertion.id,
-      rawId: encode(rawId),
+      rawId: rawId,
       type: assertion.type,
       response: {
-        authenticatorData: encode(authData),
-        clientDataJSON: encode(clientDataJSON),
-        signature: encode(sig),
-        userHandle: encode(userHandle),
+        authenticatorData: authData,
+        clientDataJSON: clientDataJSON,
+        signature: signature,
+        userHandle: userHandle,
       }
     };
   }
