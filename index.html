@@ -221,7 +221,6 @@
 
     let idCloud;
 
-
     function validateRegister(options) {
       if (!config.userName) {
         throw "User name is mandatory";
@@ -315,7 +314,8 @@
       .add("authenticatorAttachment", JsConfig.listType("platform", "cross-platform", ""), "", "Authenticator type", "0")
       .add("residentKey", JsConfig.listType("required", "preferred", "discouraged", ""), "preferred", "FIDO credential filter", "0")
       .add("userVerification", JsConfig.listType("required", "preferred", "discouraged"), "preferred", "FIDO credential filter", "0 1")
-      .add("attestation", JsConfig.listType("none", "direct", "indirect"), "none", "Requested FIDO attestation type", "0");
+      .add("attestation", JsConfig.listType("none", "direct", "indirect"), "none", "Requested FIDO attestation type", "0")
+      .add("usePRF", JsConfig.boolType(), false, "Use experimental PRF extension", "0 1");
     let config = jsc._;
 
     let isAutoFillSupported = false;
@@ -359,6 +359,15 @@
         // NOte: IdCloud provides it as a base64 encoded bytes array, while SimpleWebAuthn uses the string's bytes
         id: config.textualUserId ? config.userName : base64url.encode(new TextEncoder().encode(config.userName))
       };
+      if (config.usePRF) {
+        request.extensions = {
+          prf: {
+            eval: {
+              first: "dGhpcyBkdW1teSB2YWx1ZSBpcyBub3QgdXNlZA"
+            }
+          }
+        }
+      }
     }
 
     let autoFillAbortController;
@@ -380,6 +389,15 @@
         "id": config.credId
       }] : [];
       request.userVerification = config.userVerification ? config.userVerification : undefined;
+      if (config.usePRF) {
+        request.extensions = {
+          prf: {
+            eval: {
+              first: "UlAgcHJvdmlkZWQgY29uc3RhbnQ"
+            }
+          }
+        }
+      }
       if (useAutoFill) {
         // https://web.dev/passkey-form-autofill/
         // https://developers.yubico.com/WebAuthn/Concepts/Passkey_Autofill/Implementation_Guidance/Simple_Autofill_Flow.html

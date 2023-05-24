@@ -66,16 +66,29 @@ class IdCloud {
      PublicKeyCredential.isConditionalMediationAvailable();
   }
 
+  _decodePRF(prf) {
+    if (prf) {
+      ["first", "second"].forEach(element => {
+        if (prf[element]) {
+          prf[element] = this._options.base64Decode(prf[element]);
+        }
+      });
+    }
+  }
+  
   async enroll(credentialOptions, options) {
-    credentialOptions.challenge = new Uint8Array(this._options.base64Decode(
+    const b64encode = this._options.base64Encode;
+    const b64decode = this._options.base64Decode;
+    
+    credentialOptions.challenge = new Uint8Array(b64decode(
       credentialOptions.challenge));
     credentialOptions.user.id = this._options.isUserIdTextual ?
       new TextEncoder().encode(credentialOptions.user.id)
-      : this._options.base64Decode(credentialOptions.user.id);
+      : b64decode(credentialOptions.user.id);
     credentialOptions.excludeCredentials.forEach(excludeCredential => {
-      excludeCredential.id = this._options.base64Decode(excludeCredential.id);
+      excludeCredential.id = b64decode(excludeCredential.id);
     });
-    const encode = this._options.base64Encode;
+    this._decodePRF(credentialOptions?.extensions?.prf?.eval);
 
     const credential = await navigator.credentials.create({ publicKey: credentialOptions });
     this.constructor._debug("[IdCloud] Create credential ok:", credential);
@@ -88,10 +101,10 @@ class IdCloud {
         credName = defName;
       }
     }
-    const rawId = encode(new Uint8Array(credential.rawId));
+    const rawId = b64encode(new Uint8Array(credential.rawId));
     const response = {
-      attestationObject: encode(new Uint8Array(credential.response.attestationObject)),
-      clientDataJSON: encode(new Uint8Array(credential.response.clientDataJSON))
+      attestationObject: b64encode(new Uint8Array(credential.response.attestationObject)),
+      clientDataJSON: b64encode(new Uint8Array(credential.response.clientDataJSON))
     };
 
     if (credential.response.getAuthenticatorData) {
@@ -103,45 +116,60 @@ class IdCloud {
     if (credential.response.getPublicKeyAlgorithm) {
       response.getPublicKeyAlgorithm = () => credential.response.getPublicKeyAlgorithm();
     }
+    let clientExtensionResults = credential.getClientExtensionResults();
+    if (!clientExtensionResults) clientExtensionResults = {};
+    clientExtensionResults.thalesgroup_ext_v1 = {
+      authenticatorDescription: {
+        friendlyName: credName
+      }
+    };
     return {
       id: credential.id,
       rawId: rawId,
       type: credential.type,
       response: response,
       // Add thales extension with friendly name
-      clientExtensionResults: {
-        thalesgroup_ext_v1: {
-          authenticatorDescription: {
-            friendlyName: credName
-          }
-        }
-      }
+      clientExtensionResults: clientExtensionResults
     };
   }
 
   async authenticate(assertionOptions, credentialReqOptions) {
-    assertionOptions.challenge = new Uint8Array(this._options.base64Decode(
+    const b64encode = this._options.base64Encode;
+    const b64decode = this._options.base64Decode;
+
+    assertionOptions.challenge = new Uint8Array(b64decode(
       assertionOptions.challenge));
     if (assertionOptions.allowCredentials) {
       assertionOptions.allowCredentials.forEach(allowCredential => {
-        allowCredential.id = this._options.base64Decode(allowCredential.id);
+        allowCredential.id = b64decode(allowCredential.id);
       });
     }
-    const encode = this._options.base64Encode;
+    this._decodePRF(assertionOptions?.extensions?.prf?.eval);
 
     const getOptions = credentialReqOptions ? credentialReqOptions : {};
     getOptions.publicKey = assertionOptions;
     const assertion = await navigator.credentials.get(getOptions);
     this.constructor._debug("[IdCloud] Get credential ok:", assertion);
     
-    const rawId = encode(new Uint8Array(assertion.rawId));
-    const authData = encode(new Uint8Array(assertion.response.authenticatorData));
-    const clientDataJSON = encode(new Uint8Array(assertion.response.clientDataJSON));
-    const signature = encode(new Uint8Array(assertion.response.signature));
+    const rawId = b64encode(new Uint8Array(assertion.rawId));
+    const authData = b64encode(new Uint8Array(assertion.response.authenticatorData));
+    const clientDataJSON = b64encode(new Uint8Array(assertion.response.clientDataJSON));
+    const signature = b64encode(new Uint8Array(assertion.response.signature));
     const userHandle = this._options.isUserIdTextual ?
       new TextDecoder().decode(assertion.response.userHandle)
-      : encode(new Uint8Array(assertion.response.userHandle));
-    return {
+      : b64encode(new Uint8Array(assertion.response.userHandle));
+
+      const clientExtensionResults = assertion.getClientExtensionResults();
+      if (clientExtensionResults?.prf?.results) {
+        ["first", "second"].forEach(element => {
+          let value = clientExtensionResults.prf.results[element];
+          if (value) {
+            value = b64encode(new Uint8Array(value));
+          }
+        });
+      }
+  
+      return {
       id: assertion.id,
       rawId: rawId,
       type: assertion.type,
@@ -150,7 +178,8 @@ class IdCloud {
         clientDataJSON: clientDataJSON,
         signature: signature,
         userHandle: userHandle,
-      }
+      },
+      clientExtensionResults: clientExtensionResults
     };
   }
 
