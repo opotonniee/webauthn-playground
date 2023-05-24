@@ -557,7 +557,7 @@
           const credIdLen = new DataView(new Int8Array(authenticatorData.slice(53, 55)).buffer).getUint16();
           const credId = base64url.encode(new Int8Array(authenticatorData.slice(55, 55 + credIdLen)));
           $("#credId").val(credId);
-          jsc.readConfigTable();
+          //jsc.readConfigTable();
           authDesc += "<br/>CredId: " + credId;
           authDesc += "<br/>Pub Key: " + base64url.encode(new Int8Array(authenticatorData.slice(55 + credIdLen, 55 + credIdLen + 77)));
         }
@@ -593,8 +593,8 @@
           undefined, 2) + "</pre>");
       }
       if (result.response.userHandle) {
-        addRow("User Handle", config.textualUserId ? 
-          result.response.userHandle 
+        addRow("User Handle", config.textualUserId ?
+          result.response.userHandle
           : new TextDecoder().decode(base64url.decode(result.response.userHandle)));
       }
       if (result.response.authenticatorData) {
