@@ -482,7 +482,7 @@
     });
 
     function setDisabled(selector, isDisabled) {
-      $(selector).attr("disabled", isDisabled ? "disabled" : undefined);
+      $(selector).prop("disabled", isDisabled ? "disabled" : undefined);
     }
 
     function readInput() {
