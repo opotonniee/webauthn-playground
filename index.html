@@ -343,13 +343,14 @@
 
     function setExtensionPRF(request, first) {
       if (config.usePRF) {
-        request.extensions = {
-          prf: {
-            eval: {
-              first: first
-            }
-          }
+        if (!request.extensions) {
+          request.extensions = {};
         }
+        request.extensions.prf = {
+          eval: {
+            first: first
+          }
+        };
       } else if (request.extensions) {
         delete request.extensions.prf;
       }
