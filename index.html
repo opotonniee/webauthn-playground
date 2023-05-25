@@ -416,8 +416,12 @@
       }
     }
 
-    function configChanged() {
+    function saveConfig() {
       localStorage.setItem("webauthn_pg_tests", JSON.stringify(config));
+    }
+
+    function configChanged() {
+      saveConfig();
       updateConfig(getRequest());
       showSupport();
     }
@@ -577,7 +581,8 @@
           const credIdLen = new DataView(new Int8Array(authenticatorData.slice(53, 55)).buffer).getUint16();
           const credId = base64url.encode(new Int8Array(authenticatorData.slice(55, 55 + credIdLen)));
           $("#credId").val(credId);
-          //jsc.readConfigTable();
+          config.credId = credId;
+          saveConfig();
           authDesc += "<br/>CredId: " + credId;
           authDesc += "<br/>Pub Key: " + base64url.encode(new Int8Array(authenticatorData.slice(55 + credIdLen, 55 + credIdLen + 77)));
         }
