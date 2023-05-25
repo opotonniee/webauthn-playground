@@ -159,17 +159,17 @@ class IdCloud {
       new TextDecoder().decode(assertion.response.userHandle)
       : b64encode(new Uint8Array(assertion.response.userHandle));
 
-      const clientExtensionResults = assertion.getClientExtensionResults();
-      if (clientExtensionResults?.prf?.results) {
-        ["first", "second"].forEach(element => {
-          let value = clientExtensionResults.prf.results[element];
-          if (value) {
-            value = b64encode(new Uint8Array(value));
-          }
-        });
-      }
-  
-      return {
+    const clientExtensionResults = assertion.getClientExtensionResults();
+    if (clientExtensionResults?.prf?.results) {
+      ["first", "second"].forEach(element => {
+        let value = clientExtensionResults.prf.results[element];
+        if (value) {
+          value = b64encode(new Uint8Array(value));
+        }
+      });
+    }
+
+    const result = {
       id: assertion.id,
       rawId: rawId,
       type: assertion.type,
@@ -178,9 +178,14 @@ class IdCloud {
         clientDataJSON: clientDataJSON,
         signature: signature,
         userHandle: userHandle,
-      },
-      clientExtensionResults: clientExtensionResults
+      }
     };
+  
+    if (JSON.stringify(clientExtensionResults) !== '{}') {
+      result.clientExtensionResults = clientExtensionResults;
+    }
+    
+    return result;
   }
 
 }
