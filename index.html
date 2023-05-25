@@ -341,6 +341,23 @@
     const capitalize = (str, lower = false) =>
       (lower ? str.toLowerCase() : str).replace(/(?:^|\s|["'([{])+\S/g, match => match.toUpperCase());
 
+    function setExtensionPRF(request, first) {
+      if (config.usePRF) {
+        request.extensions = {
+          prf: {
+            eval: {
+              first: first
+            }
+          }
+        }
+      } else if (request.extensions) {
+        delete request.extensions.prf;
+      }
+      if (JSON.stringify(request.extensions) === '{}') {
+        delete request.extensions;
+      }
+    }
+    
     function configureRegister(request) {
       $("#userLogin").hide();
       cancelAutoFill();
@@ -359,15 +376,7 @@
         // NOte: IdCloud provides it as a base64 encoded bytes array, while SimpleWebAuthn uses the string's bytes
         id: config.textualUserId ? config.userName : base64url.encode(new TextEncoder().encode(config.userName))
       };
-      if (config.usePRF) {
-        request.extensions = {
-          prf: {
-            eval: {
-              first: "dGhpcyBkdW1teSB2YWx1ZSBpcyBub3QgdXNlZA"
-            }
-          }
-        }
-      }
+      setExtensionPRF(request, "dGhpcyBkdW1teSB2YWx1ZSBpcyBub3QgdXNlZA");
     }
 
     let autoFillAbortController;
@@ -389,15 +398,8 @@
         "id": config.credId
       }] : [];
       request.userVerification = config.userVerification ? config.userVerification : undefined;
-      if (config.usePRF) {
-        request.extensions = {
-          prf: {
-            eval: {
-              first: "UlAgcHJvdmlkZWQgY29uc3RhbnQ"
-            }
-          }
-        }
-      }
+      setExtensionPRF(request, "UlAgcHJvdmlkZWQgY29uc3RhbnQ");
+
       if (useAutoFill) {
         // https://web.dev/passkey-form-autofill/
         // https://developers.yubico.com/WebAuthn/Concepts/Passkey_Autofill/Implementation_Guidance/Simple_Autofill_Flow.html
