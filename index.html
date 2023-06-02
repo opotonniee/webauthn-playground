@@ -658,8 +658,10 @@
           addRow("Attestation Statement", attDesc);
         }
       }
-      if (result.response.getTransports) {
-        addRow("Transports", result.response.getTransports().toString());
+      if (result.response.transports) { // both IdCloud and SimpleWebAuthn return this
+        addRow("Transports", result.response.transports);
+      } else if (result.response.getTransports) { // should not happen anymore
+        addRow("Transports", result.response.getTransports());
       }
       if (result.response.getPublicKeyAlgorithm) {
         let keyAlgo = result.response.getPublicKeyAlgorithm();

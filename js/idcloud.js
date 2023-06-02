@@ -107,13 +107,14 @@ class IdCloud {
       clientDataJSON: b64encode(new Uint8Array(credential.response.clientDataJSON))
     };
 
-    if (credential.response.getAuthenticatorData) {
+    if (typeof credential.response.getAuthenticatorData === "function") {
       response.getAuthenticatorData = credential.response.getAuthenticatorData;
     }
-    if (credential.response.getTransports) {
-      response.getTransports = () => credential.response.getTransports();
+    if (typeof credential.response.getTransports === "function") {
+      // transports are returned in the JSON object so that it can be stored on server
+      response.transports = credential.response.getTransports();
     }
-    if (credential.response.getPublicKeyAlgorithm) {
+    if (typeof credential.response.getPublicKeyAlgorithm === "function") {
       response.getPublicKeyAlgorithm = () => credential.response.getPublicKeyAlgorithm();
     }
     let clientExtensionResults = credential.getClientExtensionResults();
