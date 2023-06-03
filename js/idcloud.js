@@ -22,7 +22,7 @@ class IdCloud {
       }
     };
   }
-  
+
   static _DEBUG = true;
   static _debug(...args) {
     if (IdCloud._DEBUG) {
@@ -75,11 +75,11 @@ class IdCloud {
       });
     }
   }
-  
+
   async enroll(credentialOptions, options) {
     const b64encode = this._options.base64Encode;
     const b64decode = this._options.base64Decode;
-    
+
     credentialOptions.challenge = new Uint8Array(b64decode(
       credentialOptions.challenge));
     credentialOptions.user.id = this._options.isUserIdTextual ?
@@ -151,7 +151,7 @@ class IdCloud {
     getOptions.publicKey = assertionOptions;
     const assertion = await navigator.credentials.get(getOptions);
     this.constructor._debug("[IdCloud] Get credential ok:", assertion);
-    
+
     const rawId = b64encode(new Uint8Array(assertion.rawId));
     const authData = b64encode(new Uint8Array(assertion.response.authenticatorData));
     const clientDataJSON = b64encode(new Uint8Array(assertion.response.clientDataJSON));
@@ -181,11 +181,11 @@ class IdCloud {
         userHandle: userHandle,
       }
     };
-  
+
     if (JSON.stringify(clientExtensionResults) !== '{}') {
       result.clientExtensionResults = clientExtensionResults;
     }
-    
+
     return result;
   }
 
