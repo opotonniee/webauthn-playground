@@ -310,6 +310,7 @@
       .add("userName", JsConfig.textType(".*"), "alex muller", "user name", "0")
       .add("textualUserId", JsConfig.boolType(), false, "Compute a textual user.id", "") // no displayed, automatically set based on selected lib
       .add("credId", JsConfig.textType(" *[^ ]* *"), "", "Expected credential id", "1")
+      .add("transports", JsConfig.textType(/(^$|^\[[a-z",]+\]$)/), "", "Supported credential transport", "1")
       .add("autoFill", JsConfig.boolType(), false, "Use last credential id", "1")
       .add("authenticatorAttachment", JsConfig.listType("platform", "cross-platform", ""), "", "Authenticator type", "0")
       .add("residentKey", JsConfig.listType("required", "preferred", "discouraged", ""), "preferred", "FIDO credential filter", "0")
@@ -358,7 +359,7 @@
         delete request.extensions;
       }
     }
-    
+
     function configureRegister(request) {
       $("#userLogin").hide();
       cancelAutoFill();
@@ -391,19 +392,24 @@
     function configureLogin(request) {
       cancelAutoFill();
       let useAutoFill = config.autoFill && isAutoFillSupported;
-      $("#credId").closest('tr').toggle(!useAutoFill);
+      $("#credId, #transports").closest('tr').toggle(!useAutoFill);
       $("#autoFill").closest('tr').toggle(isAutoFillSupported);
       $("#userLogin").toggle(useAutoFill);
       request.allowCredentials = !useAutoFill && config.credId ? [{
         "type": "public-key",
-        "id": config.credId
+        "id": config.credId,
       }] : [];
+      try {
+        if (request.allowCredentials?.length > 0 && config.transports) {
+          request.allowCredentials[0].transports = JSON.parse(config.transports);
+        }
+      } catch (error) {
+        console.error("Invalid transports:", config.transports)
+      }
       request.userVerification = config.userVerification ? config.userVerification : undefined;
       setExtensionPRF(request, "UlAgcHJvdmlkZWQgY29uc3RhbnQ");
 
       if (useAutoFill) {
-        // https://web.dev/passkey-form-autofill/
-        // https://developers.yubico.com/WebAuthn/Concepts/Passkey_Autofill/Implementation_Guidance/Simple_Autofill_Flow.html
         // launch autofill
         autoFillAbortController = new AbortController();
         setTimeout(() => {
@@ -658,11 +664,16 @@
           addRow("Attestation Statement", attDesc);
         }
       }
+      if (result.response.getTransports) { // should not happen anymore
+        result.response.transports= result.response.getTransports();
+      }
       if (result.response.transports) { // both IdCloud and SimpleWebAuthn return this
         addRow("Transports", result.response.transports);
-      } else if (result.response.getTransports) { // should not happen anymore
-        addRow("Transports", result.response.getTransports());
+        config.transports = JSON.stringify(result.response.transports);
+        $("#transports").val(config.transports);
+        saveConfig();
       }
+
       if (result.response.getPublicKeyAlgorithm) {
         let keyAlgo = result.response.getPublicKeyAlgorithm();
         const KEY_ALGO_NAMES = {
