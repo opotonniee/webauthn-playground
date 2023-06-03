@@ -323,7 +323,11 @@ class JsConfig {
         _[name] = v;
 
       } catch (error) {
-        input.focus();
+        if (input?.length > 0) {
+          input[0].focus();
+        } else {
+          input.focus();
+        }
         throw `Cannot set "${name}" value: ${error}`;
       }
 
