@@ -636,9 +636,9 @@
         const attObj = CBOR.decode(base64url.decode(result.response.attestationObject));
         console.log("Attestation Object", attObj);
         addAuthData(attObj.authData);
-        let attDesc;
+        let attDesc = "Format: " + attObj.fmt;
         if (attObj.fmt != "none") {
-          attDesc = "Format: " + attObj.fmt + "<br/>";
+          attDesc += "<br/>";
           if (attObj.fmt == "android-safetynet") {
             const jwtBody = new TextDecoder().decode(attObj.attStmt.response).split('.')[1];
             attDesc += "<pre>" + JSON.stringify(JSON.parse(new TextDecoder().decode(base64url.decode(jwtBody))),
@@ -661,8 +661,8 @@
           } else {
             attDesc += "<pre>" + JSON.stringify(attObj.attStmt, stringifyUint8ArrayAsBase64, 2) + "</pre>";
           }
-          addRow("Attestation Statement", attDesc);
         }
+        addRow("Attestation Statement", attDesc);
       }
       if (result.response.getTransports) { // should not happen anymore
         result.response.transports= result.response.getTransports();
