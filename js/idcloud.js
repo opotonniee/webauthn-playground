@@ -115,7 +115,7 @@ class IdCloud {
       response.transports = credential.response.getTransports();
     }
     if (typeof credential.response.getPublicKeyAlgorithm === "function") {
-      response.getPublicKeyAlgorithm = () => credential.response.getPublicKeyAlgorithm();
+      response.publicKeyAlgorithm = credential.response.getPublicKeyAlgorithm();
     }
     let clientExtensionResults = credential.getClientExtensionResults();
     if (!clientExtensionResults) clientExtensionResults = {};
@@ -129,6 +129,7 @@ class IdCloud {
       rawId: rawId,
       type: credential.type,
       response: response,
+      authenticatorAttachment: credential.authenticatorAttachment,
       // Add thales extension with friendly name
       clientExtensionResults: clientExtensionResults
     };

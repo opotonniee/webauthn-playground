@@ -677,8 +677,9 @@
         saveConfig();
       }
 
-      if (result.response.getPublicKeyAlgorithm) {
-        let keyAlgo = result.response.getPublicKeyAlgorithm();
+      let keyAlgo = result.response.publicKeyAlgorithm ? result.response.publicKeyAlgorithm 
+      : (result.response.getPublicKeyAlgorithm ? result.response.getPublicKeyAlgorithm() : undefined);
+      if (keyAlgo) {
         const KEY_ALGO_NAMES = {
           "-7": "ES256",
           "-257": "RS256",
