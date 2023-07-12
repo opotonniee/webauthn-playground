@@ -3,18 +3,31 @@
  *
  * (c) Thales DIS, 2021-2023
  *
- * By default, it uses base64url from https://github.com/herrjemand/Base64URL-ArrayBuffer
- * It can be overridden by defining base64Decode and base64Encode methods in constructor options
  */
 
 "use strict";
-/* globals PublicKeyCredential, base64url */
+/* globals PublicKeyCredential */
 class IdCloud {
+
+  static get Utils() {
+    return {
+        bytesToBase64url: function(bytes) {
+        const arrayBuf = ArrayBuffer.isView(bytes) ? bytes : new Uint8Array(bytes);
+        const binString = Array.from(arrayBuf, (x) => String.fromCodePoint(x)).join("");
+        return btoa(binString).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+      },
+    
+      base64urlToBytes: function (base64) {
+        const padding = "====".substring(base64.length % 4);
+        const binString = atob(base64.replaceAll("-", "+").replaceAll("_", "/") + (padding.length < 4 ? padding : ""));
+        return Uint8Array.from(binString, (m) => m.codePointAt(0));
+      }
+    }
+  }
+  
 
   static get _DEFAULT_OPTIONS() {
     return {
-      base64Decode: base64url.decode,
-      base64Encode: base64url.encode,
       isUserIdTextual: false, // should always be false: IdCloud provides a base64-encoded byte array
       fido: {
         usePlatformFIDO: true,
@@ -70,18 +83,17 @@ class IdCloud {
     if (prf) {
       ["first", "second"].forEach(element => {
         if (prf[element]) {
-          prf[element] = this._options.base64Decode(prf[element]);
+          prf[element] = IdCloud.Utils.base64urlToBytes(prf[element]);
         }
       });
     }
   }
 
   async enroll(credentialOptions, options) {
-    const b64encode = this._options.base64Encode;
-    const b64decode = this._options.base64Decode;
+    const b64encode = IdCloud.Utils.bytesToBase64url;
+    const b64decode = IdCloud.Utils.base64urlToBytes;
 
-    credentialOptions.challenge = new Uint8Array(b64decode(
-      credentialOptions.challenge));
+    credentialOptions.challenge = b64decode(credentialOptions.challenge);
     credentialOptions.user.id = this._options.isUserIdTextual ?
       new TextEncoder().encode(credentialOptions.user.id)
       : b64decode(credentialOptions.user.id);
@@ -101,10 +113,10 @@ class IdCloud {
         credName = defName;
       }
     }
-    const rawId = b64encode(new Uint8Array(credential.rawId));
+    const rawId = b64encode(credential.rawId);
     const response = {
-      attestationObject: b64encode(new Uint8Array(credential.response.attestationObject)),
-      clientDataJSON: b64encode(new Uint8Array(credential.response.clientDataJSON))
+      attestationObject: b64encode(credential.response.attestationObject),
+      clientDataJSON: b64encode(credential.response.clientDataJSON)
     };
 
     if (typeof credential.response.getAuthenticatorData === "function") {
@@ -136,11 +148,10 @@ class IdCloud {
   }
 
   async authenticate(assertionOptions, credentialReqOptions) {
-    const b64encode = this._options.base64Encode;
-    const b64decode = this._options.base64Decode;
+    const b64encode = IdCloud.Utils.bytesToBase64url;
+    const b64decode = IdCloud.Utils.base64urlToBytes;
 
-    assertionOptions.challenge = new Uint8Array(b64decode(
-      assertionOptions.challenge));
+    assertionOptions.challenge = b64decode(assertionOptions.challenge);
     if (assertionOptions.allowCredentials) {
       assertionOptions.allowCredentials.forEach(allowCredential => {
         allowCredential.id = b64decode(allowCredential.id);
@@ -153,20 +164,20 @@ class IdCloud {
     const assertion = await navigator.credentials.get(getOptions);
     this.constructor._debug("[IdCloud] Get credential ok:", assertion);
 
-    const rawId = b64encode(new Uint8Array(assertion.rawId));
-    const authData = b64encode(new Uint8Array(assertion.response.authenticatorData));
-    const clientDataJSON = b64encode(new Uint8Array(assertion.response.clientDataJSON));
-    const signature = b64encode(new Uint8Array(assertion.response.signature));
+    const rawId = b64encode(assertion.rawId);
+    const authData = b64encode(assertion.response.authenticatorData);
+    const clientDataJSON = b64encode(assertion.response.clientDataJSON);
+    const signature = b64encode(assertion.response.signature);
     const userHandle = this._options.isUserIdTextual ?
       new TextDecoder().decode(assertion.response.userHandle)
-      : b64encode(new Uint8Array(assertion.response.userHandle));
+      : b64encode(assertion.response.userHandle);
 
     const clientExtensionResults = assertion.getClientExtensionResults();
     if (clientExtensionResults?.prf?.results) {
       ["first", "second"].forEach(element => {
         let value = clientExtensionResults.prf.results[element];
         if (value) {
-          value = b64encode(new Uint8Array(value));
+          value = b64encode(value);
         }
       });
     }

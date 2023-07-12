@@ -212,7 +212,6 @@
 
   <script src="js/cash-8.1.4.min.js"></script>
   <script src="js/simplewebauthn.js"></script>
-  <script src="js/base64url-arraybuffer.js"></script>
   <script src="js/idcloud.js"></script>
   <script src="js/jsconfig.js"></script>
   <script src="js/cbor.js"></script>
@@ -220,6 +219,11 @@
   <script>
 
     let idCloud;
+
+    const base64url = {
+      decode: IdCloud.Utils.base64urlToBytes,
+      encode: IdCloud.Utils.bytesToBase64url
+    };
 
     function validateRegister(options) {
       if (!config.userName) {
@@ -555,7 +559,7 @@
         attestedCredentialData 	variable (if present)
         extensions 	variable (if present) 	CBOR Extension-defined authenticator data.
         */
-        let authDesc = "rpIdHash: " + base64url.encode(new Int8Array(authenticatorData.slice(0, 32)));
+        let authDesc = "rpIdHash: " + base64url.encode(authenticatorData.slice(0, 32));
         const flag = new Int8Array(authenticatorData.slice(32, 33))[0];
         let flags = [];
         (flag & 0x01) && flags.push("User Present");
@@ -585,13 +589,13 @@
           }
           authDesc += "<br/>AAGUID: " + aaguid;
 
-          const credIdLen = new DataView(new Int8Array(authenticatorData.slice(53, 55)).buffer).getUint16();
-          const credId = base64url.encode(new Int8Array(authenticatorData.slice(55, 55 + credIdLen)));
+          const credIdLen = new DataView(new Uint8Array(authenticatorData.slice(53, 55)).buffer).getUint16();
+          const credId = base64url.encode(authenticatorData.slice(55, 55 + credIdLen));
           $("#credId").val(credId);
           config.credId = credId;
           saveConfig();
           authDesc += "<br/>CredId: " + credId;
-          authDesc += "<br/>Pub Key: " + base64url.encode(new Int8Array(authenticatorData.slice(55 + credIdLen, 55 + credIdLen + 77)));
+          authDesc += "<br/>Pub Key: " + base64url.encode(authenticatorData.slice(55 + credIdLen, 55 + credIdLen + 77));
         }
         addRow("Authenticator Data", authDesc);
       }
@@ -633,7 +637,7 @@
         addAuthData(base64url.decode(result.response.authenticatorData));
       }
       if (result.response.attestationObject) {
-        const attObj = CBOR.decode(base64url.decode(result.response.attestationObject));
+        const attObj = CBOR.decode(base64url.decode(result.response.attestationObject).buffer);
         console.log("Attestation Object", attObj);
         addAuthData(attObj.authData);
         let attDesc;
@@ -677,7 +681,7 @@
         saveConfig();
       }
 
-      let keyAlgo = result.response.publicKeyAlgorithm ? result.response.publicKeyAlgorithm 
+      let keyAlgo = result.response.publicKeyAlgorithm ? result.response.publicKeyAlgorithm
       : (result.response.getPublicKeyAlgorithm ? result.response.getPublicKeyAlgorithm() : undefined);
       if (keyAlgo) {
         const KEY_ALGO_NAMES = {
