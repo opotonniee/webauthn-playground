@@ -16,7 +16,7 @@ class IdCloud {
         const binString = Array.from(arrayBuf, (x) => String.fromCodePoint(x)).join("");
         return btoa(binString).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
       },
-    
+
       base64urlToBytes: function (base64) {
         const padding = "====".substring(base64.length % 4);
         const binString = atob(base64.replaceAll("-", "+").replaceAll("_", "/") + (padding.length < 4 ? padding : ""));
@@ -24,15 +24,19 @@ class IdCloud {
       }
     }
   }
-  
 
+
+  static API_V1 = "v1";
+  static API_V2 = "v2";
+  
   static get _DEFAULT_OPTIONS() {
     return {
       isUserIdTextual: false, // should always be false: IdCloud provides a base64-encoded byte array
       fido: {
         usePlatformFIDO: true,
         useRoamingFIDO: true
-      }
+      },
+      version: IdCloud.API_V1
     };
   }
 
@@ -123,11 +127,19 @@ class IdCloud {
       response.getAuthenticatorData = credential.response.getAuthenticatorData;
     }
     if (typeof credential.response.getTransports === "function") {
-      // transports are returned in the JSON object so that it can be stored on server
-      response.transports = credential.response.getTransports();
+      if (this._options.version == IdCloud.API_V1) {
+        response.getTransports = () => credential.response.getTransports();
+      } else {
+        // transports are returned in the JSON object so that it can be stored on server
+        response.transports = credential.response.getTransports();
+      }
     }
     if (typeof credential.response.getPublicKeyAlgorithm === "function") {
-      response.publicKeyAlgorithm = credential.response.getPublicKeyAlgorithm();
+      if (this._options.version == IdCloud.API_V1) {
+        response.getPublicKeyAlgorithm = () => credential.response.getPublicKeyAlgorithm();
+      } else {
+        response.publicKeyAlgorithm = credential.response.getPublicKeyAlgorithm();
+      }
     }
     let clientExtensionResults = credential.getClientExtensionResults();
     if (!clientExtensionResults) clientExtensionResults = {};
@@ -141,7 +153,7 @@ class IdCloud {
       rawId: rawId,
       type: credential.type,
       response: response,
-      authenticatorAttachment: credential.authenticatorAttachment,
+      authenticatorAttachment: this._options.version == IdCloud.API_V1 ? undefined : credential.authenticatorAttachment,
       // Add thales extension with friendly name
       clientExtensionResults: clientExtensionResults
     };
