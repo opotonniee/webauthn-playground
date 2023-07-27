@@ -329,7 +329,8 @@
         fido: {
           usePlatformFIDO: config.authenticatorAttachment != "cross-platform",
           useRoamingFIDO: config.authenticatorAttachment != "platform"
-        }
+        },
+        version: IdCloud.API_V2
       });
       $("#idcwa").text(await idCloud.isFido2Available() ? "✅" : "❌");
       isAutoFillSupported = await idCloud.isAutoFillSupported();
