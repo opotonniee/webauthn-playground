@@ -284,19 +284,22 @@
       "timeout": 120000
     };
     const REQ_LOGIN = {
-      "challenge": "AAABeB78HrIemh1jTdJICr_3QG_RMOhp",
+      "challenge": "EGYtAMgi8B2Ey1FNVfVF93m5LEz_CfwTy00W2zoPEN4",
       "timeout": 120000,
       "rpId": origin.hostname,
       "allowCredentials": [],
       "extensions": {
         "thalesgroup_txn_ext_v1": {
-          "txnDigest": "QhPf8nrP8Ocil/wWdN/rmu4HtFCSOK/zSoNUmhMrc8s=",
+          "txnDigest": "QQh1hsMztUry9bhb7dJBQyCPbW0GCVmlOGgXcfcf_8A",
           "txnDetails": [
             {
-              "key1": "value1"
+              "operation": "transfer"
             },
             {
-              "key2": "value2"
+              "beneficiary": "alice"
+            },
+            {
+              "amount": "USD 100"
             }
           ],
           "nonce": "AAABdhzkZmLlTio_PX1JhKOF7gOQzUSV",
@@ -538,7 +541,7 @@
       readInput();
     });
 
-    function parseResult(result) {
+    async function parseResult(result) {
 
       function addRow(name, value) {
         $("#parsed-data").append(`<tr><td>${name}: </td><td>${value}</td></tr>`);
@@ -596,7 +599,8 @@
           config.credId = credId;
           saveConfig();
           authDesc += "<br/>CredId: " + credId;
-          authDesc += "<br/>Pub Key: " + base64url.encode(authenticatorData.slice(55 + credIdLen, 55 + credIdLen + 77));
+          let pubkey = authenticatorData.slice(55 + credIdLen/*, 55 + credIdLen + 77*/);
+          authDesc += "<br/>Pub Key: " + base64url.encode(pubkey);
         }
         addRow("Authenticator Data", authDesc);
       }
@@ -672,7 +676,7 @@
         }
         addRow("Attestation Statement", attDesc);
       }
-      if (result.response.getTransports) { // should not happen anymore
+      if (result.response.getTransports) {
         result.response.transports= result.response.getTransports();
       }
       if (result.response.transports) { // both IdCloud and SimpleWebAuthn return this
