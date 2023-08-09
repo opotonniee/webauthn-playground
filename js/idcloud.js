@@ -11,7 +11,7 @@ class IdCloud {
 
   static get Utils() {
     return {
-        bytesToBase64url: function(bytes) {
+      bytesToBase64url: function (bytes) {
         const arrayBuf = ArrayBuffer.isView(bytes) ? bytes : new Uint8Array(bytes);
         const binString = Array.from(arrayBuf, (x) => String.fromCodePoint(x)).join("");
         return btoa(binString).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
@@ -22,13 +22,13 @@ class IdCloud {
         const binString = atob(base64.replaceAll("-", "+").replaceAll("_", "/") + (padding.length < 4 ? padding : ""));
         return Uint8Array.from(binString, (m) => m.codePointAt(0));
       }
-    }
+    };
   }
 
 
   static API_V1 = "v1";
   static API_V2 = "v2";
-  
+
   static get _DEFAULT_OPTIONS() {
     return {
       isUserIdTextual: false, // should always be false: IdCloud provides a base64-encoded byte array
@@ -80,7 +80,7 @@ class IdCloud {
 
   async isAutoFillSupported() {
     return PublicKeyCredential.isConditionalMediationAvailable !== undefined &&
-     PublicKeyCredential.isConditionalMediationAvailable();
+      PublicKeyCredential.isConditionalMediationAvailable();
   }
 
   _decodePRF(prf) {
@@ -101,9 +101,11 @@ class IdCloud {
     credentialOptions.user.id = this._options.isUserIdTextual ?
       new TextEncoder().encode(credentialOptions.user.id)
       : b64decode(credentialOptions.user.id);
-    credentialOptions.excludeCredentials.forEach(excludeCredential => {
-      excludeCredential.id = b64decode(excludeCredential.id);
-    });
+    if (credentialOptions.excludeCredentials) {
+      credentialOptions.excludeCredentials.forEach(excludeCredential => {
+        excludeCredential.id = b64decode(excludeCredential.id);
+      });
+    }
     this._decodePRF(credentialOptions?.extensions?.prf?.eval);
 
     const credential = await navigator.credentials.create({ publicKey: credentialOptions });
