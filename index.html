@@ -287,26 +287,26 @@
       "challenge": "EGYtAMgi8B2Ey1FNVfVF93m5LEz_CfwTy00W2zoPEN4",
       "timeout": 120000,
       "rpId": origin.hostname,
-      "allowCredentials": [],
-      "extensions": {
-        "thalesgroup_txn_ext_v1": {
-          "txnDigest": "QQh1hsMztUry9bhb7dJBQyCPbW0GCVmlOGgXcfcf_8A",
-          "txnDetails": [
-            {
-              "operation": "transfer"
-            },
-            {
-              "beneficiary": "alice"
-            },
-            {
-              "amount": "USD 100"
-            }
-          ],
-          "nonce": "AAABdhzkZmLlTio_PX1JhKOF7gOQzUSV",
-          "challengeDerivationScheme": 1
-        }
-      }
+      "allowCredentials": []
     };
+    const REQ_LOGIN_SIGN_EXT = // "thalesgroup_txn_ext_v1"
+    {
+      "txnDigest": "QQh1hsMztUry9bhb7dJBQyCPbW0GCVmlOGgXcfcf_8A",
+      "txnDetails": [
+        {
+          "operation": "transfer"
+        },
+        {
+          "beneficiary": "alice"
+        },
+        {
+          "amount": "USD 100"
+        }
+      ],
+      "nonce": "AAABdhzkZmLlTio_PX1JhKOF7gOQzUSV",
+      "challengeDerivationScheme": 1
+    };
+
     let requests;
     function resetRequests() {
       requests = [JSON.parse(JSON.stringify(REQ_REGISTER)), JSON.parse(JSON.stringify(REQ_LOGIN))];
@@ -323,6 +323,7 @@
       .add("residentKey", JsConfig.listType("required", "preferred", "discouraged", ""), "preferred", "FIDO credential filter", "0")
       .add("userVerification", JsConfig.listType("required", "preferred", "discouraged"), "preferred", "FIDO credential filter", "0 1")
       .add("attestation", JsConfig.listType("none", "direct", "indirect"), "none", "Requested FIDO attestation type", "0")
+      .add("sign", JsConfig.boolType(), false, "IdCloud Transaction Signature extension", "1")
       .add("usePRF", JsConfig.boolType(), false, "Use experimental PRF extension", "0 1");
     let config = jsc._;
 
@@ -412,10 +413,22 @@
           request.allowCredentials[0].transports = JSON.parse(config.transports);
         }
       } catch (error) {
-        console.error("Invalid transports:", config.transports)
+        console.error("Invalid transports:", config.transports);
       }
       request.userVerification = config.userVerification ? config.userVerification : undefined;
       setExtensionPRF(request, "UlAgcHJvdmlkZWQgY29uc3RhbnQ");
+
+      if (config.sign) {
+        if (!request.extensions) {
+          request.extensions = {};
+        }
+        request.extensions.thalesgroup_txn_ext_v1 = REQ_LOGIN_SIGN_EXT;
+      } else if (request.extensions) {
+        delete request.extensions.thalesgroup_txn_ext_v1;
+      }
+      if (JSON.stringify(request.extensions) === '{}') {
+        delete request.extensions;
+      }
 
       if (useAutoFill) {
         // launch autofill
@@ -677,7 +690,7 @@
         addRow("Attestation Statement", attDesc);
       }
       if (result.response.getTransports) {
-        result.response.transports= result.response.getTransports();
+        result.response.transports = result.response.getTransports();
       }
       if (result.response.transports) { // both IdCloud and SimpleWebAuthn return this
         addRow("Transports", result.response.transports);
@@ -687,7 +700,7 @@
       }
 
       let keyAlgo = result.response.publicKeyAlgorithm ? result.response.publicKeyAlgorithm
-      : (result.response.getPublicKeyAlgorithm ? result.response.getPublicKeyAlgorithm() : undefined);
+        : (result.response.getPublicKeyAlgorithm ? result.response.getPublicKeyAlgorithm() : undefined);
       if (keyAlgo) {
         const KEY_ALGO_NAMES = {
           "-7": "ES256",
