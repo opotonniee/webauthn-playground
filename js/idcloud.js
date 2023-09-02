@@ -36,7 +36,7 @@ class IdCloud {
         usePlatformFIDO: true,
         useRoamingFIDO: true
       },
-      version: IdCloud.API_V1
+      version: IdCloud.API_V2
     };
   }
 
@@ -93,6 +93,12 @@ class IdCloud {
     }
   }
 
+  #copyFunction(name, from, to) {
+    if (typeof from[name] === "function") {
+      to[name] = from[name];
+    }
+  }
+
   async enroll(credentialOptions, options) {
     const b64encode = IdCloud.Utils.bytesToBase64url;
     const b64decode = IdCloud.Utils.base64urlToBytes;
@@ -125,40 +131,47 @@ class IdCloud {
       clientDataJSON: b64encode(credential.response.clientDataJSON)
     };
 
-    if (typeof credential.response.getAuthenticatorData === "function") {
-      response.getAuthenticatorData = credential.response.getAuthenticatorData;
-    }
-    if (typeof credential.response.getTransports === "function") {
-      if (this._options.version == IdCloud.API_V1) {
-        response.getTransports = () => credential.response.getTransports();
-      } else {
-        // transports are returned in the JSON object so that it can be stored on server
-        response.transports = credential.response.getTransports();
-      }
-    }
-    if (typeof credential.response.getPublicKeyAlgorithm === "function") {
-      if (this._options.version == IdCloud.API_V1) {
-        response.getPublicKeyAlgorithm = () => credential.response.getPublicKeyAlgorithm();
-      } else {
-        response.publicKeyAlgorithm = credential.response.getPublicKeyAlgorithm();
-      }
+    [
+      "getAuthenticatorData",
+      "getTransports",
+      "getPublicKeyAlgorithm",
+      "getPublicKey"
+    ].forEach(fn => {
+      this.#copyFunction(fn, credential.response, response);
+    });
+    if (this._options.version == IdCloud.API_V2) {
+      response.transports = response.getTransports && credential.response.getTransports();
+      response.publicKeyAlgorithm = response.getPublicKeyAlgorithm && credential.response.getPublicKeyAlgorithm();
     }
     let clientExtensionResults = credential.getClientExtensionResults();
     if (!clientExtensionResults) clientExtensionResults = {};
+    // Add thales "friendly name" extension
     clientExtensionResults.thalesgroup_ext_v1 = {
       authenticatorDescription: {
         friendlyName: credName
       }
     };
-    return {
+    // Add thales "client type" extension
+    clientExtensionResults.thalesgroup_client_ext_v1 = {
+      clientType: 1
+    };
+
+    const result = {
       id: credential.id,
       rawId: rawId,
       type: credential.type,
       response: response,
       authenticatorAttachment: this._options.version == IdCloud.API_V1 ? undefined : credential.authenticatorAttachment,
-      // Add thales extension with friendly name
       clientExtensionResults: clientExtensionResults
     };
+    [
+      "isConditionalMediationAvailable",
+      "getClientExtensionResults",
+      "toJSON",
+    ].forEach(fn => {
+      this.#copyFunction(fn, credential, result);
+    });
+    return result;
   }
 
   async authenticate(assertionOptions, credentialReqOptions) {
@@ -207,6 +220,17 @@ class IdCloud {
         userHandle: userHandle,
       }
     };
+
+    [
+      "isConditionalMediationAvailable",
+      "getClientExtensionResults",
+      "toJSON",
+    ].forEach(fn => {
+      this.#copyFunction(fn, assertion, result);
+    });
+    if (this._options.version == IdCloud.API_V2) {
+      result.authenticatorAttachment = assertion.authenticatorAttachment;
+    }
 
     if (JSON.stringify(clientExtensionResults) !== '{}') {
       result.clientExtensionResults = clientExtensionResults;
