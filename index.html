@@ -576,7 +576,7 @@
         attestedCredentialData 	variable (if present)
         extensions 	variable (if present) 	CBOR Extension-defined authenticator data.
         */
-        let authDesc = "rpIdHash: " + base64url.encode(authenticatorData.slice(0, 32));
+        let authDesc = "<ul><li>rpIdHash: " + base64url.encode(authenticatorData.slice(0, 32)) + "</li>";
         const flag = new Int8Array(authenticatorData.slice(32, 33))[0];
         let flags = [];
         (flag & 0x01) && flags.push("User Present");
@@ -586,17 +586,18 @@
         (flag & 0x40) && flags.push("Attested data");
         (flag & 0x80) && flags.push("Extension data");
         const counter = new DataView(new Uint8Array(authenticatorData.slice(33, 37)).buffer).getUint32();
-        authDesc += "<br/>Flags: "
+        authDesc += "<li>Flags: "
           + "0b" + ("00000000" + flag.toString(2)).slice(-8)
-          + (flags.length ? `  (${flags.toString()})` : "");
-        authDesc += "<br/>Counter: " + counter;
+          + (flags.length ? `  (${flags.toString()})` : "") + "</li>";
+        authDesc += "<li/>Counter: " + counter + "</li>";
         if (flag & 0x40) {
+          authDesc += "<li>Attested cred data:<ul>";
           /*
           attestedCredentialData:
             AAGUID: 16
             CredId Len: 2
             CredId
-            COSE Pub key: 77
+            COSE Pub key: 77?
           */
 
           let aaguidHexa = array2hex(new Uint8Array(authenticatorData.slice(37, 53)));
@@ -604,16 +605,16 @@
           if (aaguid != "00000000-0000-0000-0000-000000000000") {
             aaguid = `<a target="_blank" href="https://opotonniee.github.io/fido-mds-explorer/?aaguid=${aaguid}">${aaguid}</a>`;
           }
-          authDesc += "<br/>AAGUID: " + aaguid;
+          authDesc += "<li>AAGUID: " + aaguid + "</li>";
 
           const credIdLen = new DataView(new Uint8Array(authenticatorData.slice(53, 55)).buffer).getUint16();
           const credId = base64url.encode(authenticatorData.slice(55, 55 + credIdLen));
           $("#credId").val(credId);
           config.credId = credId;
           saveConfig();
-          authDesc += "<br/>CredId: " + credId;
+          authDesc += "<li>CredId: " + credId + "</li>";
           let pubkey = authenticatorData.slice(55 + credIdLen/*, 55 + credIdLen + 77*/);
-          authDesc += "<br/>Pub Key: " + base64url.encode(pubkey);
+          authDesc += "<li>Pub Key: " + base64url.encode(pubkey) + "</li></ul></li>";
         }
         addRow("Authenticator Data", authDesc);
       }
@@ -713,6 +714,9 @@
         addRow("Key algo", `${keyAlgo} ${keyAlgoName ? " (" + keyAlgoName + ")" : ""}`);
       }
 
+      if (JsAuthenticatorTests && result?.response?.signature) {
+        addRow("Signature valid?", await JsAuthenticatorTests.validateWebAuthnOutput(result));
+      }
     }
 
     async function runRequest(reqOptions) {
