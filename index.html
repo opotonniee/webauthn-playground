@@ -379,6 +379,7 @@
         userVerification: config.userVerification ? config.userVerification : undefined,
         authenticatorAttachment: config.authenticatorAttachment ? config.authenticatorAttachment : undefined
       };
+      request.hints = [ config.hints ];
       request.attestation = config.attestation;
       request.user = { // all fields are REQUIRED
         name: config.userName,
@@ -409,6 +410,7 @@
         "type": "public-key",
         "id": config.credId,
       }] : [];
+      request.hints = [ config.hints ];
       try {
         if (request.allowCredentials?.length > 0 && config.transports) {
           request.allowCredentials[0].transports = JSON.parse(config.transports);
