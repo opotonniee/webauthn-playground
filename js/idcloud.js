@@ -210,7 +210,7 @@ class IdCloud {
     }
     this._decodePRF(assertionOptions?.extensions?.prf?.eval);
 
-    const getOptions = credentialReqOptions ? credentialReqOptions : {};
+    const getOptions = credentialReqOptions ? JSON.parse(JSON.stringify(credentialReqOptions)) : {};
     getOptions.publicKey = assertionOptions;
 
     this.#setHints(getOptions.publicKey);
