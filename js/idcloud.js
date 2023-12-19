@@ -133,7 +133,6 @@ class IdCloud {
 
     [
       "getAuthenticatorData",
-      "getTransports",
       "getPublicKeyAlgorithm",
       "getPublicKey"
     ].forEach(fn => {
@@ -165,9 +164,7 @@ class IdCloud {
       clientExtensionResults: clientExtensionResults
     };
     [
-      "isConditionalMediationAvailable",
-      "getClientExtensionResults",
-      "toJSON",
+      "isConditionalMediationAvailable"
     ].forEach(fn => {
       this.#copyFunction(fn, credential, result);
     });
@@ -222,9 +219,7 @@ class IdCloud {
     };
 
     [
-      "isConditionalMediationAvailable",
-      "getClientExtensionResults",
-      "toJSON",
+      "isConditionalMediationAvailable"
     ].forEach(fn => {
       this.#copyFunction(fn, assertion, result);
     });
