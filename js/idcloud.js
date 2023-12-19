@@ -34,7 +34,8 @@ class IdCloud {
       isUserIdTextual: false, // should always be false: IdCloud provides a base64-encoded byte array
       fido: {
         usePlatformFIDO: true,
-        useRoamingFIDO: true
+        useRoamingFIDO: true,
+        hints: undefined
       },
       version: IdCloud.API_V2
     };
@@ -98,6 +99,27 @@ class IdCloud {
       to[name] = from[name];
     }
   }
+  #getOptionalFunctionValue(fn) {
+    try {
+      if (typeof fn === "function") {
+        return fn();
+      }
+    } catch (err) {
+      console.error(`Ignored error while accessing ${fn.name}: ${err}`);
+    }
+  }
+
+  #setHints(requestOptions) {
+    if (requestOptions.hints == undefined && this._options.fido.hints != undefined) {
+      if (Array.isArray(this._options.fido.hints)) {
+        requestOptions.hints = this._options.fido.hints;
+      } else if (typeof this._options.fido.hints === "string") {
+        requestOptions.hints = [ this._options.fido.hints ];
+      } else {
+        console.error("Invalid 'hints' value (should be a string or an array of strings)")
+      }
+    }
+  }
 
   async enroll(credentialOptions, options) {
     const b64encode = IdCloud.Utils.bytesToBase64url;
@@ -113,6 +135,8 @@ class IdCloud {
       });
     }
     this._decodePRF(credentialOptions?.extensions?.prf?.eval);
+
+    this.#setHints(credentialOptions);
 
     const credential = await navigator.credentials.create({ publicKey: credentialOptions });
     this.constructor._debug("[IdCloud] Create credential ok:", credential);
@@ -139,8 +163,8 @@ class IdCloud {
       this.#copyFunction(fn, credential.response, response);
     });
     if (this._options.version == IdCloud.API_V2) {
-      response.transports = response.getTransports && credential.response.getTransports();
-      response.publicKeyAlgorithm = response.getPublicKeyAlgorithm && credential.response.getPublicKeyAlgorithm();
+      response.transports = this.#getOptionalFunctionValue(response.getTransports);
+      response.publicKeyAlgorithm = this.#getOptionalFunctionValue(response.getPublicKeyAlgorithm);
     }
     let clientExtensionResults = credential.getClientExtensionResults();
     if (!clientExtensionResults) clientExtensionResults = {};
@@ -183,8 +207,11 @@ class IdCloud {
     }
     this._decodePRF(assertionOptions?.extensions?.prf?.eval);
 
-    const getOptions = credentialReqOptions ? credentialReqOptions : {};
+    const getOptions = credentialReqOptions ? JSON.parse(JSON.stringify(credentialReqOptions)) : {};
     getOptions.publicKey = assertionOptions;
+
+    this.#setHints(getOptions.publicKey);
+
     const assertion = await navigator.credentials.get(getOptions);
     this.constructor._debug("[IdCloud] Get credential ok:", assertion);
 
