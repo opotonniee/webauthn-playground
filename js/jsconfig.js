@@ -1,13 +1,7 @@
 "use strict";
-/* globals $ */
 
 /**
  * JSConfig is utility to manage preferences or config entries in the form of <name, value> pairs
- *
- * Simple usage:
- *   - Set up the JsConfig object:
- *     ``const
- *
  */
 class JsConfig {
 
@@ -19,15 +13,27 @@ class JsConfig {
   static get _TYPE_NUM() { return 2; }
   static get _TYPE_ENUM() { return 3; }
 
-  constructor(autoSave) {
+  static _addHTML = function(element, html) {
+    return element.insertAdjacentHTML("beforeend", html);
+  }
+
+  /**
+   * Build a JsConfig object.
+   * @param {*} settings: Optional object with optional settings
+   *    - autoSave (boolean): Automatically save UI changes
+   *    - version (Number): config compatible version. see {@link setConfig()}
+   */
+  constructor(settings) {
     // The config data object. Use `new JsConfig()._` to access it
     this._ = {};
     // Private field holding the config entries's description
     this._desc = {};
     // listener
     this._onChangeListener = undefined;
-    // automatically save UI changes
-    this._autoSave = autoSave;
+    // Automatically save UI changes
+    this._autoSave = settings?.autoSave;
+    // Store config version in persisted data
+    this._._version = settings?.version;
   }
 
   /**
@@ -111,7 +117,9 @@ class JsConfig {
 
   /**
    * Sets the config with pre-defined values, overriding defaults.
-   * Triggers the change listener invocation.
+   * If the JsConfig object has a version, the setting is only applied if
+   * the newConfig object has the same version value.
+   * Triggers the change listener invocation when changes were applied.
    *
    * @param {object.<string, boolean|string>} newConfig - An object with config entries, that will override existing config entries
    * @returns this
@@ -125,17 +133,22 @@ class JsConfig {
         newConfig = undefined;
       }
     }
-    if (newConfig) {
+    if (newConfig &&
+      // ony load compatible config version
+      (!this._._version || (this._._version == newConfig._version))) {
+      let isChanged = false;
       let _desc = this._desc;
       let _ = this._;
-      $.each(newConfig, function (name, value) {
+      for (let name in newConfig) {
+        const value = newConfig[name];
         if (typeof _desc[name] !== "undefined") {
+          isChanged = _[name] != value;
           _[name] = value;
         }
-      });
+      }
+      // notify changes
+      isChanged && this.change();
     }
-    // notify changes
-    this.change();
     return this;
   }
 
@@ -148,9 +161,9 @@ class JsConfig {
   resetToDefault() {
     this._ = {};
     let _ = this._;
-    $.each(this._desc, function (name, desc) {
-      _[name] = desc.defaultValue;
-    });
+    for (let name in this._desc) {
+      _[name] = this._desc[name].defaultValue;
+    }
     // notify changes
     this.change();
     return this;
@@ -183,18 +196,22 @@ class JsConfig {
   /**
    * Displays the configuration into a table, either editable or readonly
    *
-   * @param {object} jqTable - a JQuery element for the target table to fill
+   * @param {object} table - a JQuery element for the target table to fill
    * @param {boolean} [readonly=false] - if set and true, the config not editable
    * @returns this
    */
-  showConfigTable(jqTable, readonly) {
-    jqTable.empty();
+  showConfigTable(table, readonly) {
+    table.innerHTML = "";
     let _ = this._;
-    this._jqTable = jqTable;
+    this._table = table;
+    const tbody = table.createTBody();
     let jsc = this;
-    $.each(this._desc, function (name, desc) {
-      var tr = $(`<tr class="${desc.rowClass}">`);
-      tr.append($('<td>').text(name + ":").attr('title', desc.readableDesc));
+    for (let name in this._desc) {
+      const desc = this._desc[name];
+      const trClass = desc.rowClass ?  `class="${desc.rowClass}"` : "";
+      JsConfig._addHTML(tbody, `<tr ${trClass}></tr>`);
+      const tr = table.querySelector("tr:last-child");
+      JsConfig._addHTML(tr, `<td title="${desc.readableDesc}">${name}:</td>`);
       let input;
       let val = _[name];
       let type = desc.typeDesc;
@@ -204,8 +221,7 @@ class JsConfig {
           if (readonly) {
             input = val ? "TRUE" : "FALSE";
           } else  {
-            input = $(`<input type="checkbox" id="${name}"/>`);
-            input.prop('checked', val);
+            input = `<input type="checkbox" id="${name}" ${val ? "checked" : ""}/>`;
           }
           break;
 
@@ -213,8 +229,7 @@ class JsConfig {
           if (readonly) {
             input = val;
           } else  {
-            input = $(`<input type="text" id="${name}"/>`);
-            input.val(val);
+            input = `<input type="text" id="${name}" value="${val}"/>`;
           }
           break;
 
@@ -222,17 +237,17 @@ class JsConfig {
           if (readonly) {
             input = val;
           } else  {
-            input = $(`<input id="${name}" type="number">`);
+            let attrs = "";
             if (typeof type.min != undefined) {
-              input.attr("min", type.min);
+              attrs += " min=${type.min}";
             }
             if (typeof type.max != undefined) {
-              input.attr("max", type.max);
+              attrs += " max=${type.max}";
             }
             if (typeof type.step != undefined) {
-              input.attr("step", type.step);
+              attrs += " step=${type.step}";
             }
-            input.val(val);
+            input = `<input id="${name}" type="number" value="${val}"/>`;
           }
           break;
 
@@ -240,11 +255,12 @@ class JsConfig {
           if (readonly) {
             input = val;
           } else  {
-            input = $(`<select id="${name}">`);
-            $.each(type.values, function (idx, optV) {
-              input.append($(`<option value='${optV}'>`).text(optV));
-            });
-            input.val(val);
+            let options = ""
+            for (const optV of type.values) {
+              const selected = val == optV ? "selected" : "";
+              options += `<option value='${optV}' ${selected}>${optV}</option>`;
+            }
+            input = `<select id="${name}">${options}</select>`;
           }
           break;
 
@@ -252,15 +268,12 @@ class JsConfig {
           throw "Invalid type: " + type;
       }
 
-      if (typeof input == 'object') {
-        input.attr('title', desc.readableDesc);
-      }
-      tr.append($('<td>').append(input));
-      jqTable.append(tr);
+      JsConfig._addHTML(tr, `<td title="${desc.readableDesc}">${input}</td>`);
       if (jsc._autoSave) {
-        input.on("change", () => { jsc.readConfigTable() });
+        input = tr.querySelector("td:last-child").firstChild;
+        input.addEventListener("change", () => { jsc.readConfigTable() });
       }
-    });
+    }
     return this;
   }
 
@@ -268,16 +281,17 @@ class JsConfig {
    * Sets the config with the value from the table.
    * Triggers the change listener invocation.
    *
-   * @param {JQuery element} jqTable - a JQuery element for the config table to read. If undefined, the table used in last showConfigTable() is reused.
+   * @param {HTML Element} table - the HTML document element for the config table to read. If undefined, the table used in last showConfigTable() is reused.
    * @returns this
    */
-  readConfigTable(jqTable) {
-    if (!jqTable) {
-      jqTable = this._jqTable;
+  readConfigTable(table) {
+    if (!table) {
+      table = this._table;
     }
     let _ = this._;
-    $.each(this._desc, function (name, desc) {
-      let input = jqTable.find("#" + name);
+    for (const name in this._desc) {
+      const desc = this._desc[name];
+      let input = table.querySelector("#" + name);
       let type = desc.typeDesc;
       let v;
 
@@ -286,11 +300,11 @@ class JsConfig {
         switch (type.type) {
 
           case JsConfig._TYPE_BOOL:
-            v = input.prop('checked');
+            v = input.checked;
             break;
 
           case JsConfig._TYPE_TEXT:
-            v = input.val().trim();
+            v = input.value.trim();
             if (type.pattern) {
               if (!new RegExp(type.pattern).test(v)) {
                 throw `Should match the pattern "${type.pattern}"`;
@@ -299,7 +313,7 @@ class JsConfig {
             break;
 
           case JsConfig._TYPE_NUM:
-            v = parseFloat(input.val());
+            v = parseFloat(input.value);
             if (
               (isNaN(v)) ||
               (typeof type.min !== "undefined" && v < type.min) ||
@@ -310,7 +324,7 @@ class JsConfig {
             break;
 
           case JsConfig._TYPE_ENUM:
-            v = input.val();
+            v = input.value;
             if (type.values.indexOf(v) < 0) {
               throw `"${v}" is not a valid value`;
             }
@@ -323,15 +337,11 @@ class JsConfig {
         _[name] = v;
 
       } catch (error) {
-        if (input?.length > 0) {
-          input[0].focus();
-        } else {
-          input.focus();
-        }
+        input.focus();
         throw `Cannot set "${name}" value: ${error}`;
       }
 
-    });
+    }
     // notify changes
     this.change();
     return this;

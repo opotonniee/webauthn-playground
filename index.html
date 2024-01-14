@@ -313,7 +313,7 @@
     }
     resetRequests();
 
-    let jsc = new JsConfig(true)
+    let jsc = new JsConfig({autoSave: true, version: 1})
       .add("userName", JsConfig.textType(".*"), "alex muller", "user name", "0")
       .add("textualUserId", JsConfig.boolType(), false, "Compute a textual user.id", "") // no displayed, automatically set based on selected lib
       .add("credId", JsConfig.textType(" *[^ ]* *"), "", "Expected credential id", "1")
@@ -458,8 +458,8 @@
     }
     jsc.onChange(configChanged)
       .setConfig(localStorage.getItem("webauthn_pg_tests"))
-      .showConfigTable($("#config"), false);
-    $("#config").prepend('<tr id="userLogin"><td>Auto fill:</td><td><input type="text" autoComplete="username webauthn" /></td></tr>');
+      .showConfigTable($("#config")[0], false);
+      $("#config tbody").prepend('<tr id="userLogin"><td>Auto fill:</td><td><input type="text" autoComplete="username webauthn" /></td></tr>');
 
     function stringifyUint8ArrayAsBase64(key, value) {
       if (value.buffer && value.byteLength) {
