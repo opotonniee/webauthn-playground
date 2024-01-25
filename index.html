@@ -438,11 +438,11 @@
         autoFillAbortController = new AbortController();
         setTimeout(() => {
           console.log("start auto fill");
-          $("#userLogin input")[0].focus();
           runRequest({
             signal: autoFillAbortController.signal,
             mediation: "conditional"
           });
+          $("#userLogin input")[0].focus();
         }, 500);
       }
     }
