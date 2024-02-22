@@ -255,7 +255,7 @@ class IdCloud {
       this.#copyFunction(fn, assertion, result);
     });
     if (this._options.version == IdCloud.API_V2) {
-      result.authenticatorAttachment = assertion.authenticatorAttachment;
+      result.authenticatorAttachment = assertion.authenticatorAttachment ? assertion.authenticatorAttachment : undefined;
     }
 
     if (JSON.stringify(clientExtensionResults) !== '{}') {
