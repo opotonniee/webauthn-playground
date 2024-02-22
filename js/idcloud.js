@@ -157,6 +157,7 @@ class IdCloud {
 
     [
       "getAuthenticatorData",
+      "getTransports",
       "getPublicKeyAlgorithm",
       "getPublicKey"
     ].forEach(fn => {
