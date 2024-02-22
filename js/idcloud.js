@@ -96,7 +96,7 @@ class IdCloud {
 
   #copyFunction(name, from, to) {
     if (typeof from[name] === "function") {
-      to[name] = from[name];
+      to[name] = () => from[name]();
     }
   }
   #getOptionalFunctionValue(fn) {

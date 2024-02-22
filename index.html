@@ -698,7 +698,7 @@
         addRow("Key algo", `${keyAlgo} ${keyAlgoName ? " (" + keyAlgoName + ")" : ""}`);
       }
 
-      if (JsAuthenticatorTests && result?.response?.signature) {
+      if ((typeof JsAuthenticatorTests != "undefined") && result?.response?.signature) {
         addRow("Signature valid?", await JsAuthenticatorTests.validateWebAuthnOutput(result));
       }
     }
