@@ -255,30 +255,17 @@
     let requestConfigurators = [configureRegister, configureLogin];
     const REQ_REGISTER = {
       "rp": {
-        origins: [
-          origin
-        ],
+        origins: [origin],
         id: origin.hostname,
         name: RP_NAME
       },
       "challenge": "AAABeB78HrIemh1jTdJICr_3QG_RMOhp",
       "pubKeyCredParams": [
-        {
-          type: "public-key",
-          alg: -257
-        }, {
-          type: "public-key",
-          alg: -35
-        }, {
-          type: "public-key",
-          alg: -36
-        }, {
-          type: "public-key",
-          alg: -7
-        }, {
-          type: "public-key",
-          alg: -8
-        }
+        { type: "public-key", alg: -257 },
+        { type: "public-key", alg: -35 },
+        { type: "public-key", alg: -36 },
+        { type: "public-key", alg: -7 },
+        { type: "public-key", alg: -8 }
       ],
       "excludeCredentials": [],
       "timeout": 120000
@@ -293,15 +280,9 @@
     {
       "txnDigest": "QQh1hsMztUry9bhb7dJBQyCPbW0GCVmlOGgXcfcf_8A",
       "txnDetails": [
-        {
-          "operation": "transfer"
-        },
-        {
-          "beneficiary": "alice"
-        },
-        {
-          "amount": "USD 100"
-        }
+        { "operation": "transfer" },
+        { "beneficiary": "alice" },
+        { "amount": "USD 100" }
       ],
       "nonce": "AAABdhzkZmLlTio_PX1JhKOF7gOQzUSV",
       "challengeDerivationScheme": 1
@@ -313,7 +294,7 @@
     }
     resetRequests();
 
-    let jsc = new JsConfig({autoSave: true, version: 1})
+    let jsc = new JsConfig({ autoSave: true, version: 1 })
       .add("userName", JsConfig.textType(".*"), "alex muller", "user name", "0")
       .add("textualUserId", JsConfig.boolType(), false, "Compute a textual user.id", "") // no displayed, automatically set based on selected lib
       .add("credId", JsConfig.textType(" *[^ ]* *"), "", "Expected credential id", "1")
@@ -324,7 +305,7 @@
       .add("userVerification", JsConfig.listType("required", "preferred", "discouraged"), "preferred", "FIDO credential filter", "0 1")
       .add("attestation", JsConfig.listType("none", "direct", "indirect"), "none", "Requested FIDO attestation type", "0")
       .add("sign", JsConfig.boolType(), false, "IdCloud Transaction Signature extension", "1")
-      .add("hints", JsConfig.listType("", "security-key", "client-device","hybrid"), "", "Requested FIDO attestation type", "0 1")
+      .add("hints", JsConfig.listType("", "security-key", "client-device", "hybrid"), "", "Requested FIDO attestation type", "0 1")
       .add("usePRF", JsConfig.boolType(), false, "Use experimental PRF extension", "0 1");
     let config = jsc._;
 
@@ -379,7 +360,7 @@
         userVerification: config.userVerification ? config.userVerification : undefined,
         authenticatorAttachment: config.authenticatorAttachment ? config.authenticatorAttachment : undefined
       };
-      request.hints = [ config.hints ];
+      request.hints = [config.hints];
       request.attestation = config.attestation;
       request.user = { // all fields are REQUIRED
         name: config.userName,
@@ -410,7 +391,7 @@
         "type": "public-key",
         "id": config.credId,
       }] : [];
-      request.hints = [ config.hints ];
+      request.hints = [config.hints];
       try {
         if (request.allowCredentials?.length > 0 && config.transports) {
           request.allowCredentials[0].transports = JSON.parse(config.transports);
@@ -459,7 +440,7 @@
     jsc.onChange(configChanged)
       .setConfig(localStorage.getItem("webauthn_pg_tests"))
       .showConfigTable($("#config")[0], false);
-      $("#config tbody").prepend('<tr id="userLogin"><td>Auto fill:</td><td><input type="text" autoComplete="username webauthn" /></td></tr>');
+    $("#config tbody").prepend('<tr id="userLogin"><td>Auto fill:</td><td><input type="text" autoComplete="username webauthn" /></td></tr>');
 
     function stringifyUint8ArrayAsBase64(key, value) {
       if (value.buffer && value.byteLength) {
