@@ -7,6 +7,8 @@
 
 "use strict";
 /* globals PublicKeyCredential */
+
+// eslint-disable-next-line no-unused-vars
 class IdCloud {
 
   static get Utils() {
@@ -67,7 +69,7 @@ class IdCloud {
   async isFido2Available() {
     const usePlatformFIDO = this._options.fido.usePlatformFIDO;
     const useRoamingFIDO = this._options.fido.useRoamingFIDO;
-    return new Promise(function (resolve, reject) {
+    return new Promise(function (resolve) {
       let fidoSupported = (typeof window.PublicKeyCredential === "function");
       if (fidoSupported && !useRoamingFIDO && usePlatformFIDO) {
         PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(res => {
@@ -140,7 +142,7 @@ class IdCloud {
 
     const credential = await navigator.credentials.create({ publicKey: credentialOptions });
     this.constructor._debug("[IdCloud] Create credential ok:", credential);
-    let credName = navigator.userAgent.replaceAll(/[0-9;:\.\/\(\)]/ig, "").split(' ').slice(1, 4).join(" ");
+    let credName = navigator.userAgent.replaceAll(/[0-9;:./()]/ig, "").split(' ').slice(1, 4).join(" ");
     if (options && options.getCredName) {
       const defName = credName;
       credName = options.getCredName(defName);
