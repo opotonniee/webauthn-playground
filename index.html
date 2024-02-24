@@ -543,6 +543,9 @@
       function addRow(name, value) {
         $("#parsed-data").append(`<tr><td>${name}: </td><td>${value}</td></tr>`);
       }
+      function nvListItem(name, value) {
+        return `<li><strong>${name}</strong>: ${value}</li>`;
+      }
 
       function addAuthData(authenticatorData) {
         /*
@@ -560,7 +563,8 @@
         attestedCredentialData 	variable (if present)
         extensions 	variable (if present) 	CBOR Extension-defined authenticator data.
         */
-        let authDesc = "<ul><li>rpIdHash: " + base64url.encode(authenticatorData.slice(0, 32)) + "</li>";
+        let authDesc = "<ul>";
+        authDesc += nvListItem("rpIdHash", base64url.encode(authenticatorData.slice(0, 32)));
         const flag = new Int8Array(authenticatorData.slice(32, 33))[0];
         let flags = [];
         (flag & 0x01) && flags.push("User Present");
@@ -570,12 +574,12 @@
         (flag & 0x40) && flags.push("Attested data");
         (flag & 0x80) && flags.push("Extension data");
         const counter = new DataView(new Uint8Array(authenticatorData.slice(33, 37)).buffer).getUint32();
-        authDesc += "<li>Flags: "
+        authDesc += nvListItem("Flags",
           + "0b" + ("00000000" + flag.toString(2)).slice(-8)
-          + (flags.length ? `  (${flags.toString()})` : "") + "</li>";
-        authDesc += "<li/>Counter: " + counter + "</li>";
+          + (flags.length ? `  (${flags.toString().replaceAll(",", ", ")})` : ""));
+        authDesc += nvListItem("Counter", counter);
         if (flag & 0x40) {
-          authDesc += "<li>Attested cred data:<ul>";
+          credData = "<ul>";
           /*
           attestedCredentialData:
             AAGUID: 16
@@ -589,17 +593,21 @@
           if (aaguid != "00000000-0000-0000-0000-000000000000") {
             aaguid = `<a target="_blank" href="https://opotonniee.github.io/fido-mds-explorer/?aaguid=${aaguid}">${aaguid}</a>`;
           }
-          authDesc += "<li>AAGUID: " + aaguid + "</li>";
+          credData += nvListItem("AAGUID", aaguid);
 
           const credIdLen = new DataView(new Uint8Array(authenticatorData.slice(53, 55)).buffer).getUint16();
           const credId = base64url.encode(authenticatorData.slice(55, 55 + credIdLen));
           $("#credId").val(credId);
           config.credId = credId;
           saveConfig();
-          authDesc += "<li>CredId: " + credId + "</li>";
-          let pubkey = authenticatorData.slice(55 + credIdLen/*, 55 + credIdLen + 77*/);
-          authDesc += "<li>Pub Key: " + base64url.encode(pubkey) + "</li></ul></li>";
+          credData += nvListItem("CredId", credId);
+
+          let pubKey = authenticatorData.slice(55 + credIdLen/*, 55 + credIdLen + 77*/);
+          credData += nvListItem("Pub Key", base64url.encode(pubKey));
+          credData += "</ul>";
         }
+
+        authDesc += nvListItem("Attested cred data", credData);
         addRow("Authenticator Data", authDesc);
       }
 
@@ -627,9 +635,12 @@
         }
       }
       if (result.response.clientDataJSON) {
-        addRow("Client Data", "<pre>" + JSON.stringify(
-          JSON.parse(new TextDecoder().decode(base64url.decode(result.response.clientDataJSON))),
-          undefined, 2) + "</pre>");
+        let clientData = JSON.parse(new TextDecoder().decode(base64url.decode(result.response.clientDataJSON)));
+        let clientDataList = "<ul>";
+        for (e in clientData) {
+          clientDataList += `<li><strong>${e}</strong>: ${clientData[e]}</li>`;
+        }
+        addRow("Client Data", clientDataList);
       }
       if (result.response.userHandle) {
         addRow("User Handle", config.textualUserId ?
