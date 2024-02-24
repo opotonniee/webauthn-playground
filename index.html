@@ -181,10 +181,8 @@
   </h2>
   <div>
     Request:
-    <select id="request">
-      <option value="0">Register</option>
-      <option value="1">Login</option>
-    </select>
+    <label><input name="request" type="radio" value="0" checked/>Register</label>
+    <label><input name="request" type="radio" value="1"/>Login</label>
     <button id="run">Execute</button>
     <span id="status" class="result"></span>
   </div>
@@ -233,7 +231,7 @@
 
     async function idcRegister(options) {
       validateRegister(options);
-      return idCloud.enroll(options, { getCredName: () => { return "test"; } });
+      return idCloud.enroll(options/*, { getCredName: () => { return "test"; } }*/);
     }
 
     async function idcLogin(options, reqOptions) {
@@ -459,7 +457,7 @@
     }
 
     function getRequest() {
-      let reqId = Number.parseInt($("#request").val());
+      let reqId = Number.parseInt(document.querySelector("input[name=request]:checked").value);
       let jsLibId = getJsLib();
       config.textualUserId = jsLibId == 2; // SimpleWebAuthn uses textual user id
       return {
@@ -486,7 +484,7 @@
       showSupport();
     }
     updateRequest();
-    $("#request").on("change", updateRequest);
+    $("input[name=request]").on("change", updateRequest);
 
     // JS lib selector
     function hideSettings() {
