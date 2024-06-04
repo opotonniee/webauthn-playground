@@ -368,11 +368,10 @@
           };
         }
       } else if (request.extensions) {
-        delete request.extensions.prf;
-        delete request.extensions.credProps;
-        delete request.extensions.largeBlob;
-        delete request.extensions.supplementalPubKeys;
-        delete request.extensions.uvm;
+        for (ext of ["prf", "credProps", "largeBlob", "supplementalPubKeys",
+          "uvm", "payment", "//payment"]) {
+          delete request.extensions[ext];
+        }
       }
       if (JSON.stringify(request.extensions) === '{}') {
         delete request.extensions;
