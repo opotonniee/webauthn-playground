@@ -229,7 +229,7 @@
       }
     }
     function validateLogin(options) {
-      if (options.extensions.largeBlob.write
+      if (options?.extensions?.largeBlob?.write
       && typeof options.extensions.largeBlob.write == "string") {
         options.extensions.largeBlob.write = base64url.decode(options.extensions.largeBlob.write);
       }
@@ -418,7 +418,7 @@
         "type": "public-key",
         "id": config.credId,
       }] : [];
-      request.hints = [config.hints];
+      request.hints = config.hints ? [config.hints] : undefined;
       try {
         if (request.allowCredentials?.length > 0 && config.transports) {
           request.allowCredentials[0].transports = JSON.parse(config.transports);
