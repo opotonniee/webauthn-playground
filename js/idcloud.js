@@ -165,7 +165,7 @@ class IdCloud {
     const b64decode = IdCloud.Utils.base64urlToBytes;
 
     credentialOptions = this.#cleanupOptions(credentialOptions);
-    
+
     credentialOptions.challenge = b64decode(credentialOptions.challenge);
     credentialOptions.user.id = this.#options.isUserIdTextual ?
       new TextEncoder().encode(credentialOptions.user.id)
@@ -268,12 +268,12 @@ class IdCloud {
 
     const clientExtensionResults = assertion.getClientExtensionResults();
     if (clientExtensionResults?.prf?.results) {
-      ["first", "second"].forEach(element => {
+      for (let element of ["first", "second"]) {
         let value = clientExtensionResults.prf.results[element];
         if (value) {
-          value = b64encode(value);
+          clientExtensionResults.prf.results[element] = b64encode(value);
         }
-      });
+      }
     }
 
     const result = {
