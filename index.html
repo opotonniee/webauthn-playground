@@ -228,6 +228,12 @@
         throw "User name is mandatory";
       }
     }
+    function validateLogin(options) {
+      if (options.extensions.largeBlob.write
+      && typeof options.extensions.largeBlob.write == "string") {
+        options.extensions.largeBlob.write = base64url.decode(options.extensions.largeBlob.write);
+      }
+    }
 
     async function idcRegister(options) {
       validateRegister(options);
@@ -235,6 +241,7 @@
     }
 
     async function idcLogin(options, reqOptions) {
+      validateLogin(options);
       return idCloud.authenticate(options, reqOptions);
     }
 
@@ -244,6 +251,7 @@
     }
 
     async function swaLogin(options, reqOptions) {
+      validateLogin(options);
       return SimpleWebAuthnBrowser.startAuthentication(options, reqOptions !== undefined);
     }
 
@@ -304,7 +312,7 @@
       .add("attestation", JsConfig.listType("none", "direct", "indirect"), "none", "Requested FIDO attestation type", "0")
       .add("sign", JsConfig.boolType(), false, "IdCloud Transaction Signature extension", "1")
       .add("hints", JsConfig.listType("", "security-key", "client-device", "hybrid"), "", "Requested FIDO attestation type", "0 1")
-      .add("usePRF", JsConfig.boolType(), false, "Use experimental PRF extension", "0 1");
+      .add("extensions", JsConfig.boolType(), false, "Add extension", "0 1");
     let config = jsc._;
 
     let isAutoFillSupported = false;
@@ -331,18 +339,40 @@
     const capitalize = (str, lower = false) =>
       (lower ? str.toLowerCase() : str).replace(/(?:^|\s|["'([{])+\S/g, match => match.toUpperCase());
 
-    function setExtensionPRF(request, first) {
-      if (config.usePRF) {
+    function setExtensions(request, isRegister) {
+      if (config.extensions) {
         if (!request.extensions) {
           request.extensions = {};
         }
         request.extensions.prf = {
           eval: {
-            first: first
+            first: "UlAgcHJvdmlkZWQgY29uc3RhbnQ"
           }
         };
+        request.extensions.uvm = true;
+        request.extensions.supplementalPubKeys = {
+          scopes: ["device", "provider"],
+          attestation: "indirect"
+        };
+        request.extensions.largeBlob = {
+          "//read": true,
+          "//write": "dGhpcyBpcyBkdW1teQ"
+        };
+        if (isRegister) {
+          request.extensions.credProps = true;
+          request.extensions["//payment"] = {
+            isPayment: true
+          };
+          request.extensions.largeBlob = {
+            support: "preferred"
+          };
+        }
       } else if (request.extensions) {
         delete request.extensions.prf;
+        delete request.extensions.credProps;
+        delete request.extensions.largeBlob;
+        delete request.extensions.supplementalPubKeys;
+        delete request.extensions.uvm;
       }
       if (JSON.stringify(request.extensions) === '{}') {
         delete request.extensions;
@@ -358,7 +388,7 @@
         userVerification: config.userVerification ? config.userVerification : undefined,
         authenticatorAttachment: config.authenticatorAttachment ? config.authenticatorAttachment : undefined
       };
-      request.hints = [config.hints];
+      request.hints = config.hints ? [config.hints] : undefined;
       request.attestation = config.attestation;
       request.user = { // all fields are REQUIRED
         name: config.userName,
@@ -368,7 +398,7 @@
         // NOte: IdCloud provides it as a base64 encoded bytes array, while SimpleWebAuthn uses the string's bytes
         id: config.textualUserId ? config.userName : base64url.encode(new TextEncoder().encode(config.userName))
       };
-      setExtensionPRF(request, "dGhpcyBkdW1teSB2YWx1ZSBpcyBub3QgdXNlZA");
+      setExtensions(request, true);
     }
 
     let autoFillAbortController;
@@ -398,7 +428,7 @@
         console.error("Invalid transports:", config.transports);
       }
       request.userVerification = config.userVerification ? config.userVerification : undefined;
-      setExtensionPRF(request, "UlAgcHJvdmlkZWQgY29uc3RhbnQ");
+      setExtensions(request);
 
       if (config.sign) {
         if (!request.extensions) {
@@ -573,11 +603,11 @@
         (flag & 0x80) && flags.push("Extension data");
         const counter = new DataView(new Uint8Array(authenticatorData.slice(33, 37)).buffer).getUint32();
         authDesc += nvListItem("Flags",
-          + "0b" + ("00000000" + flag.toString(2)).slice(-8)
+          "0b" + ("00000000" + flag.toString(2)).slice(-8)
           + (flags.length ? `  (${flags.toString().replaceAll(",", ", ")})` : ""));
         authDesc += nvListItem("Counter", counter);
         if (flag & 0x40) {
-          credData = "<ul>";
+          let credData = "<ul>";
           /*
           attestedCredentialData:
             AAGUID: 16
@@ -603,9 +633,10 @@
           let pubKey = authenticatorData.slice(55 + credIdLen/*, 55 + credIdLen + 77*/);
           credData += nvListItem("Pub Key", base64url.encode(pubKey));
           credData += "</ul>";
+
+          authDesc += nvListItem("Attested cred data", credData);
         }
 
-        authDesc += nvListItem("Attested cred data", credData);
         addRow("Authenticator Data", authDesc);
       }
 
