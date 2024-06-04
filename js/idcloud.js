@@ -129,7 +129,7 @@ class IdCloud {
   }
 
   #getCredName(credential, options) {
-    
+
     // default to authenticator's name if provided
     let credName = credential.getClientExtensionResults()?.credProps?.authenticatorDisplayName;
     // if not, compute a default name from user agent
@@ -148,10 +148,24 @@ class IdCloud {
     return credName;
   }
 
+  #cleanupOptions(options) {
+    let cleanOptions = {};
+    // shallow copy of credentialReqOptions to getOptions
+    Object.assign(cleanOptions, options);
+
+    // delete FIDO2 server response fields if present
+    delete cleanOptions.status;
+    delete cleanOptions.errorMessage;
+
+    return cleanOptions;
+  }
+
   async enroll(credentialOptions, options) {
     const b64encode = IdCloud.Utils.bytesToBase64url;
     const b64decode = IdCloud.Utils.base64urlToBytes;
 
+    credentialOptions = this.#cleanupOptions(credentialOptions);
+    
     credentialOptions.challenge = b64decode(credentialOptions.challenge);
     credentialOptions.user.id = this.#options.isUserIdTextual ?
       new TextEncoder().encode(credentialOptions.user.id)
@@ -223,6 +237,7 @@ class IdCloud {
     const b64encode = IdCloud.Utils.bytesToBase64url;
     const b64decode = IdCloud.Utils.base64urlToBytes;
 
+    assertionOptions = this.#cleanupOptions(assertionOptions);
     assertionOptions.challenge = b64decode(assertionOptions.challenge);
     if (assertionOptions.allowCredentials) {
       assertionOptions.allowCredentials.forEach(allowCredential => {
