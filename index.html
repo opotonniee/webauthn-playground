@@ -5,10 +5,10 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link id="favicon" rel="icon" href="img/favicon.ico" type="image/x-icon" />
+  <link id="favicon" rel="icon" href="img/favicon.ico" type="image/x-icon">
   <title>WebAuthn Playground</title>
 
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css">
 
   <style>
     table#support,
@@ -149,7 +149,7 @@
     </select>
     <span id="about">
       <a href="https://github.com/opotonniee/webauthn-playground">
-        <img class="icon" src="img/github-mark.svg" />
+        <img class="icon" src="img/github-mark.svg" alt="github icon">
       </a>
     </span>
   </h1>
@@ -181,28 +181,28 @@
   </h2>
   <div>
     Request:
-    <label><input name="request" type="radio" value="0" checked/>Register</label>
-    <label><input name="request" type="radio" value="1"/>Login</label>
+    <label><input name="request" type="radio" value="0" checked>Register</label>
+    <label><input name="request" type="radio" value="1">Login</label>
     <button id="run">Execute</button>
     <span id="status" class="result"></span>
   </div>
   <table id="config"></table>
-  <span class="io-span">
+  <div class="io-span">
     <h2 class="io-title not-selectable">
       Input
       <span id="reset-input" title="Reset JSON Input" class="clickable">🧽</span>
     </h2>
     <textarea id="input" class="io-textarea">
     </textarea>
-  </span>
-  <span class="io-span">
+  </div>
+  <div class="io-span">
     <h2 class="io-title not-selectable">
       Output
       <span id="parse-output" title="Parse JSON Output" class="clickable">🔎</span>
     </h2>
     <textarea class="result io-textarea" id="output">
     </textarea>
-  </span>
+  </div>
   <div>
     <h2 class="not-selectable">Parsed Output</h2>
     <table id="parsed-data" class="result"></table>
@@ -304,7 +304,7 @@
       .add("userName", JsConfig.textType(".*"), "alex muller", "user name", "0")
       .add("textualUserId", JsConfig.boolType(), false, "Compute a textual user.id", "") // no displayed, automatically set based on selected lib
       .add("credId", JsConfig.textType(" *[^ ]* *"), "", "Expected credential id", "1")
-      .add("transports", JsConfig.textType(/(^$|^\[[a-z",]+\]$)/), "", "Supported credential transport", "1")
+      .add("transports", JsConfig.textType(/(^$|^\[[a-z",]*\]$)/), "", "Supported credential transport", "1")
       .add("autoFill", JsConfig.boolType(), false, "Use last credential id", "1")
       .add("authenticatorAttachment", JsConfig.listType("platform", "cross-platform", ""), "", "Authenticator type", "0")
       .add("residentKey", JsConfig.listType("required", "preferred", "discouraged", ""), "preferred", "FIDO credential filter", "0")
