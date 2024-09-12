@@ -216,6 +216,10 @@ class IdCloud {
     clientExtensionResults.thalesgroup_client_ext_v1 = {
       clientType: 1
     };
+    // Copy token challenge extension from request if it was present
+    if (credentialOptions?.extensions?.thalesgroup_chl_tkn_ext_v1) {
+      clientExtensionResults.thalesgroup_chl_tkn_ext_v1 = credentialOptions.extensions.thalesgroup_chl_tkn_ext_v1;
+    }
 
     const result = {
       id: credential.id,
@@ -274,6 +278,10 @@ class IdCloud {
           clientExtensionResults.prf.results[element] = b64encode(value);
         }
       }
+    }
+    // Copy token challenge extension from request if it was present
+    if (assertionOptions?.extensions?.thalesgroup_chl_tkn_ext_v1) {
+      clientExtensionResults.thalesgroup_chl_tkn_ext_v1 = assertionOptions.extensions.thalesgroup_chl_tkn_ext_v1;
     }
 
     const result = {
