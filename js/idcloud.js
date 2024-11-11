@@ -86,21 +86,6 @@ class IdCloud {
       PublicKeyCredential.isConditionalMediationAvailable();
   }
 
-  #decodePRF(prf) {
-    if (prf) {
-      ["first", "second"].forEach(element => {
-        if (prf[element]) {
-          prf[element] = IdCloud.Utils.base64urlToBytes(prf[element]);
-        }
-      });
-    }
-  }
-
-  #copyFunction(name, from, to) {
-    if (typeof from[name] === "function") {
-      to[name] = () => from[name]();
-    }
-  }
   #getOptionalFunctionValue(fn) {
     try {
       if (typeof fn === "function") {
@@ -148,106 +133,133 @@ class IdCloud {
     return credName;
   }
 
-  #cleanupOptions(options) {
-    let cleanOptions = {};
-    // shallow copy of credentialReqOptions to getOptions
-    Object.assign(cleanOptions, options);
-
-    // delete FIDO2 server response fields if present
-    delete cleanOptions.status;
-    delete cleanOptions.errorMessage;
-
-    return cleanOptions;
+  #toJsonObject(obj) {
+    const TO_SKIP = [
+      "toJSON"
+    ];
+    const res = {};
+    for (const name in obj) {
+      const val = obj[name];
+      if (TO_SKIP.includes(name)) {
+        // skip
+      } else if (typeof (val) === "string" ||
+        typeof (val) === "boolean" ||
+        typeof (val) === "number") {
+        res[name] = val;
+      } else if (val instanceof ArrayBuffer) {
+        res[name] = IdCloud.Utils.bytesToBase64url(val);
+      } else if (typeof (val) === "function") {
+        res[name] = () => obj[name]();
+      } else if (typeof (val) === "object") {
+        res[name] = this.#toJsonObject(val);
+      }
+    }
+    return res;
   }
 
-  async enroll(credentialOptions, options) {
-    const b64encode = IdCloud.Utils.bytesToBase64url;
-    const b64decode = IdCloud.Utils.base64urlToBytes;
+  #fromJsonObject(prefix, obj) {
+    const
+      TO_SKIP = [
+        "status",
+        "errorMessage",
+        "thalesgroup_chl_tkn_ext_v1",
+        "thalesgroup_ext_v1",
+        "thalesgroup_txn_ext_v1"
+      ],
+      ANY = [
+        "extensions.prf.evalByCredential"
+      ],
+      B64 = [
+        "challenge",
+        "user.id",
+        "excludeCredentials[].id",
+        "allowCredentials[].id",
+        "extensions.prf.eval.first",
+        "extensions.prf.eval.second",
+        "extensions.prf.evalByCredential.*.first",
+        "extensions.prf.evalByCredential.*.second",
+        "extensions.prf.result.first",
+        "extensions.prf.result.second",
+        "extensions.largeBlob.write",
+        "response.authenticatorData",
+        "response.clientDataJSON",
+        "response.signature",
+        "response.userHandle"
+      ];
 
-    credentialOptions = this.#cleanupOptions(credentialOptions);
-
-    credentialOptions.challenge = b64decode(credentialOptions.challenge);
-    credentialOptions.user.id = this.#options.isUserIdTextual ?
-      new TextEncoder().encode(credentialOptions.user.id)
-      : b64decode(credentialOptions.user.id);
-    if (credentialOptions.excludeCredentials) {
-      credentialOptions.excludeCredentials.forEach(excludeCredential => {
-        excludeCredential.id = b64decode(excludeCredential.id);
-      });
+    const res = {};
+    for (const name in obj) {
+      const val = obj[name];
+      let fullName = prefix ? prefix + "." + name : name;
+      if (TO_SKIP.includes(fullName)) {
+        // skip
+      } else if (B64.includes(fullName)) {
+          res[name] = IdCloud.Utils.base64urlToBytes(val);
+      } else if (typeof (val) === "string" ||
+        typeof (val) === "boolean" ||
+        typeof (val) === "number") {
+        res[name] = val;
+      } else if (Array.isArray(val)) {
+        res[name] = [];
+        for (let item of val) {
+          res[name].push(this.#fromJsonObject(fullName + "[]", item));
+        }
+      } else if (typeof (val) === "function") {
+        res[name] = () => obj[name]();
+      } else if (typeof (val) === "object") {
+        if (ANY.includes(fullName.substring(0, fullName.lastIndexOf('.')))) {
+          fullName = prefix + ".*"
+        }
+        res[name] = this.#fromJsonObject(fullName, val);
+      }
     }
+    return res;
+  }
 
-    this.#setHints(credentialOptions);
-    this.#setCredProps(credentialOptions);
-    this.#decodePRF(credentialOptions?.extensions?.prf?.eval);
+  async enroll(pubKeyOptions, options) {
 
-    IdCloud.#debug("[IdCloud] Create credential options (pk):", credentialOptions);
-    const credential = await navigator.credentials.create({ publicKey: credentialOptions });
-    IdCloud.#debug("[IdCloud] Create credential ok:", credential);
-
-    let credName = this.#getCredName(credential, options);
-
-    const rawId = b64encode(credential.rawId);
-    const response = {
-      attestationObject: b64encode(credential.response.attestationObject),
-      clientDataJSON: b64encode(credential.response.clientDataJSON)
+    this.#setHints(pubKeyOptions);
+    this.#setCredProps(pubKeyOptions);
+    const createOptions = {
+      publicKey: this.#fromJsonObject(null, pubKeyOptions)
     };
 
-    [
-      "getAuthenticatorData",
-      "getTransports",
-      "getPublicKeyAlgorithm",
-      "getPublicKey"
-    ].forEach(fn => {
-      this.#copyFunction(fn, credential.response, response);
-    });
+    IdCloud.#debug("[IdCloud] Create credential options (pk):", createOptions);
+    const credential = await navigator.credentials.create(createOptions);
+    IdCloud.#debug("[IdCloud] Create credential ok:", credential);
+
+    const result = this.#toJsonObject(credential);
+
     if (this.#options.version == IdCloud.API_V2) {
-      response.transports = this.#getOptionalFunctionValue(response.getTransports);
-      response.publicKeyAlgorithm = this.#getOptionalFunctionValue(response.getPublicKeyAlgorithm);
+      result.response.transports =
+        this.#getOptionalFunctionValue(result.response.getTransports);
+      result.response.publicKeyAlgorithm =
+        this.#getOptionalFunctionValue(result.response.getPublicKeyAlgorithm);
     }
-    let clientExtensionResults = credential.getClientExtensionResults();
-    if (!clientExtensionResults) clientExtensionResults = {};
+    result.clientExtensionResults = result.getClientExtensionResults() || {};
     // Add thales "friendly name" extension
-    clientExtensionResults.thalesgroup_ext_v1 = {
+    let credName = this.#getCredName(credential, options);
+    result.clientExtensionResults.thalesgroup_ext_v1 = {
       authenticatorDescription: {
         friendlyName: credName
       }
     };
     // Add thales "client type" extension
-    clientExtensionResults.thalesgroup_client_ext_v1 = {
+    result.clientExtensionResults.thalesgroup_client_ext_v1 = {
       clientType: 1
     };
+    // Copy token challenge extension from request if it was present
+    if (pubKeyOptions?.extensions?.thalesgroup_chl_tkn_ext_v1) {
+      result.clientExtensionResults.thalesgroup_chl_tkn_ext_v1 = pubKeyOptions.extensions.thalesgroup_chl_tkn_ext_v1;
+    }
 
-    const result = {
-      id: credential.id,
-      rawId: rawId,
-      type: credential.type,
-      response: response,
-      authenticatorAttachment: this.#options.version == IdCloud.API_V1 ? undefined : credential.authenticatorAttachment,
-      clientExtensionResults: clientExtensionResults
-    };
-    [
-      "isConditionalMediationAvailable"
-    ].forEach(fn => {
-      this.#copyFunction(fn, credential, result);
-    });
     return result;
   }
 
-  async authenticate(assertionOptions, credentialReqOptions) {
-    const b64encode = IdCloud.Utils.bytesToBase64url;
-    const b64decode = IdCloud.Utils.base64urlToBytes;
-
-    assertionOptions = this.#cleanupOptions(assertionOptions);
-    assertionOptions.challenge = b64decode(assertionOptions.challenge);
-    if (assertionOptions.allowCredentials) {
-      assertionOptions.allowCredentials.forEach(allowCredential => {
-        allowCredential.id = b64decode(allowCredential.id);
-      });
-    }
-    this.#decodePRF(assertionOptions?.extensions?.prf?.eval);
+  async authenticate(pubKeyOptions, credentialReqOptions) {
 
     const getOptions = {
-      publicKey: assertionOptions
+      publicKey: this.#fromJsonObject(null, pubKeyOptions)
     };
     // shallow copy of credentialReqOptions to getOptions
     Object.assign(getOptions, credentialReqOptions);
@@ -258,47 +270,12 @@ class IdCloud {
     const assertion = await navigator.credentials.get(getOptions);
     IdCloud.#debug("[IdCloud] Get credential ok:", assertion);
 
-    const rawId = b64encode(assertion.rawId);
-    const authData = b64encode(assertion.response.authenticatorData);
-    const clientDataJSON = b64encode(assertion.response.clientDataJSON);
-    const signature = b64encode(assertion.response.signature);
-    const userHandle = this.#options.isUserIdTextual ?
-      new TextDecoder().decode(assertion.response.userHandle)
-      : b64encode(assertion.response.userHandle);
+    const result = this.#toJsonObject(assertion);
 
-    const clientExtensionResults = assertion.getClientExtensionResults();
-    if (clientExtensionResults?.prf?.results) {
-      for (let element of ["first", "second"]) {
-        let value = clientExtensionResults.prf.results[element];
-        if (value) {
-          clientExtensionResults.prf.results[element] = b64encode(value);
-        }
-      }
-    }
-
-    const result = {
-      id: assertion.id,
-      rawId: rawId,
-      type: assertion.type,
-      response: {
-        authenticatorData: authData,
-        clientDataJSON: clientDataJSON,
-        signature: signature,
-        userHandle: userHandle,
-      }
-    };
-
-    [
-      "isConditionalMediationAvailable"
-    ].forEach(fn => {
-      this.#copyFunction(fn, assertion, result);
-    });
-    if (this.#options.version == IdCloud.API_V2) {
-      result.authenticatorAttachment = assertion.authenticatorAttachment ? assertion.authenticatorAttachment : undefined;
-    }
-
-    if (JSON.stringify(clientExtensionResults) !== '{}') {
-      result.clientExtensionResults = clientExtensionResults;
+    result.clientExtensionResults = assertion.getClientExtensionResults() || {};
+    // Copy token challenge extension from request if it was present
+    if (pubKeyOptions?.extensions?.thalesgroup_chl_tkn_ext_v1) {
+      result.clientExtensionResults.thalesgroup_chl_tkn_ext_v1 = pubKeyOptions.extensions.thalesgroup_chl_tkn_ext_v1;
     }
 
     return result;

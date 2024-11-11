@@ -245,14 +245,31 @@
       return idCloud.authenticate(options, reqOptions);
     }
 
+    function decodePrf(options) {
+      if (options?.extensions?.prf?.eval?.first) {
+        options.extensions.prf.eval.first =
+          IdCloud.Utils.base64urlToBytes(options.extensions.prf.eval.first);
+      }
+    }
+
     async function swaRegister(options) {
       validateRegister(options);
-      return SimpleWebAuthnBrowser.startRegistration(options);
+      decodePrf(options);
+      let res = SimpleWebAuthnBrowser.startRegistration({
+        optionsJSON: options
+      });
+      //delete res.response.authenticatorData;
+      //delete res.response.publicKey;
+      return res;
     }
 
     async function swaLogin(options, reqOptions) {
       validateLogin(options);
-      return SimpleWebAuthnBrowser.startAuthentication(options, reqOptions !== undefined);
+      decodePrf(options);
+      return SimpleWebAuthnBrowser.startAuthentication({
+        optionsJSON: options,
+        useBrowserAutofill: reqOptions !== undefined
+      });
     }
 
     let operations = [idcRegister, idcLogin, swaRegister, swaLogin];
@@ -350,10 +367,6 @@
           }
         };
         request.extensions.uvm = true;
-        request.extensions.supplementalPubKeys = {
-          scopes: ["device", "provider"],
-          attestation: "indirect"
-        };
         request.extensions.largeBlob = {
           "//read": true,
           "//write": "dGhpcyBpcyBkdW1teQ"
@@ -366,7 +379,13 @@
           request.extensions.largeBlob = {
             support: "preferred"
           };
-        }
+        } /*else {
+          request.extensions.prf.evalByCredential = {
+            "e02eZ9lPp0UdkF4vGRO4-NxlhWBkL1FCmsmb1tTfRyE": {
+              first: "UlAgcHJvdmlkZWQgY29uc3RhbnQ"
+            }
+          };
+        }*/
       } else if (request.extensions) {
         for (ext of ["prf", "credProps", "largeBlob", "supplementalPubKeys",
           "uvm", "payment", "//payment"]) {
@@ -488,7 +507,7 @@
     function getRequest() {
       let reqId = Number.parseInt(document.querySelector("input[name=request]:checked").value);
       let jsLibId = getJsLib();
-      config.textualUserId = jsLibId == 2; // SimpleWebAuthn uses textual user id
+      config.textualUserId = false; //jsLibId == 2; // SimpleWebAuthn uses textual user id
       return {
         request: requests[reqId],
         configurator: requestConfigurators[reqId],
