@@ -133,31 +133,39 @@ class IdCloud {
     return credName;
   }
 
-  #toJsonObject(obj) {
+  #toJsonObject(val) {
     const TO_SKIP = [
       "toJSON"
     ];
-    const res = {};
-    for (const name in obj) {
-      const val = obj[name];
-      if (TO_SKIP.includes(name)) {
-        // skip
-      } else if (typeof (val) === "string" ||
-        typeof (val) === "boolean" ||
-        typeof (val) === "number") {
-        res[name] = val;
-      } else if (val instanceof ArrayBuffer) {
-        res[name] = IdCloud.Utils.bytesToBase64url(val);
-      } else if (typeof (val) === "function") {
-        res[name] = () => obj[name]();
-      } else if (typeof (val) === "object") {
-        res[name] = this.#toJsonObject(val);
+    let res;
+    if (typeof (val) === "string" ||
+      typeof (val) === "boolean" ||
+      typeof (val) === "number") {
+      res = val;
+    } else if (val instanceof ArrayBuffer) {
+      res = IdCloud.Utils.bytesToBase64url(val);
+    } else if (Array.isArray(val)) {
+      res = [];
+      for (let item of val) {
+        res.push(this.#toJsonObject(item));
+      }
+    } else if (typeof (val) === "object") {
+      res = {};
+      for (const name in val) {
+        if (!TO_SKIP.includes(name)) {
+          if (typeof (val[name]) === "function") {
+            // preserve 'this'
+            res[name] = () => val[name]();
+          } else {
+            res[name] = this.#toJsonObject(val[name]);
+          }
+        }
       }
     }
     return res;
   }
 
-  #fromJsonObject(prefix, obj) {
+  #fromJsonObject(val, scopedName) {
     const
       TO_SKIP = [
         "status",
@@ -187,30 +195,37 @@ class IdCloud {
         "response.userHandle"
       ];
 
-    const res = {};
-    for (const name in obj) {
-      const val = obj[name];
-      let fullName = prefix ? prefix + "." + name : name;
-      if (TO_SKIP.includes(fullName)) {
-        // skip
-      } else if (B64.includes(fullName)) {
-          res[name] = IdCloud.Utils.base64urlToBytes(val);
-      } else if (typeof (val) === "string" ||
-        typeof (val) === "boolean" ||
-        typeof (val) === "number") {
-        res[name] = val;
-      } else if (Array.isArray(val)) {
-        res[name] = [];
-        for (let item of val) {
-          res[name].push(this.#fromJsonObject(fullName + "[]", item));
+    let res;
+    if (TO_SKIP.includes(scopedName)) {
+      // skip
+    } else if (B64.includes(scopedName)) {
+        res = IdCloud.Utils.base64urlToBytes(val);
+    } else if (typeof (val) === "string" ||
+      typeof (val) === "boolean" ||
+      typeof (val) === "number") {
+      res = val;
+    } else if (Array.isArray(val)) {
+      res = [];
+      for (let item of val) {
+        res.push(this.#fromJsonObject(item, (scopedName || "") + "[]"));
+      }
+    } else if (typeof (val) === "object") {
+      res = {};
+      for (const name in val) {
+        let childScopedName = name;
+        if (scopedName) {
+          if (ANY.includes(scopedName.substring(0, scopedName.lastIndexOf('.')))) {
+            childScopedName = scopedName + ".*"
+          } else {
+            childScopedName = scopedName + "." + name;
+          }
         }
-      } else if (typeof (val) === "function") {
-        res[name] = () => obj[name]();
-      } else if (typeof (val) === "object") {
-        if (ANY.includes(fullName.substring(0, fullName.lastIndexOf('.')))) {
-          fullName = prefix + ".*"
+        if (typeof (val[name]) === "function") {
+          // preserve 'this'
+          res[name] = () => val[name]();
+        } else {
+          res[name] = this.#fromJsonObject(val[name], childScopedName);
         }
-        res[name] = this.#fromJsonObject(fullName, val);
       }
     }
     return res;
@@ -221,7 +236,7 @@ class IdCloud {
     this.#setHints(pubKeyOptions);
     this.#setCredProps(pubKeyOptions);
     const createOptions = {
-      publicKey: this.#fromJsonObject(null, pubKeyOptions)
+      publicKey: this.#fromJsonObject(pubKeyOptions)
     };
 
     IdCloud.#debug("[IdCloud] Create credential options (pk):", createOptions);
@@ -259,7 +274,7 @@ class IdCloud {
   async authenticate(pubKeyOptions, credentialReqOptions) {
 
     const getOptions = {
-      publicKey: this.#fromJsonObject(null, pubKeyOptions)
+      publicKey: this.#fromJsonObject(pubKeyOptions)
     };
     // shallow copy of credentialReqOptions to getOptions
     Object.assign(getOptions, credentialReqOptions);
