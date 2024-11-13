@@ -186,8 +186,6 @@ class IdCloud {
         "extensions.prf.eval.second",
         "extensions.prf.evalByCredential.*.first",
         "extensions.prf.evalByCredential.*.second",
-        "extensions.prf.result.first",
-        "extensions.prf.result.second",
         "extensions.largeBlob.write",
         "response.authenticatorData",
         "response.clientDataJSON",
@@ -243,6 +241,7 @@ class IdCloud {
     const credential = await navigator.credentials.create(createOptions);
     IdCloud.#debug("[IdCloud] Create credential ok:", credential);
 
+    credential.clientExtensionResults = credential.getClientExtensionResults() || {};
     const result = this.#toJsonObject(credential);
 
     if (this.#options.version == IdCloud.API_V2) {
@@ -251,7 +250,6 @@ class IdCloud {
       result.response.publicKeyAlgorithm =
         this.#getOptionalFunctionValue(result.response.getPublicKeyAlgorithm);
     }
-    result.clientExtensionResults = result.getClientExtensionResults() || {};
     // Add thales "friendly name" extension
     let credName = this.#getCredName(credential, options);
     result.clientExtensionResults.thalesgroup_ext_v1 = {
@@ -285,9 +283,9 @@ class IdCloud {
     const assertion = await navigator.credentials.get(getOptions);
     IdCloud.#debug("[IdCloud] Get credential ok:", assertion);
 
+    assertion.clientExtensionResults = assertion.getClientExtensionResults() || {};
     const result = this.#toJsonObject(assertion);
 
-    result.clientExtensionResults = assertion.getClientExtensionResults() || {};
     // Copy token challenge extension from request if it was present
     if (pubKeyOptions?.extensions?.thalesgroup_chl_tkn_ext_v1) {
       result.clientExtensionResults.thalesgroup_chl_tkn_ext_v1 = pubKeyOptions.extensions.thalesgroup_chl_tkn_ext_v1;

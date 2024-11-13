@@ -229,10 +229,6 @@
       }
     }
     function validateLogin(options) {
-      if (options?.extensions?.largeBlob?.write
-      && typeof options.extensions.largeBlob.write == "string") {
-        options.extensions.largeBlob.write = base64url.decode(options.extensions.largeBlob.write);
-      }
     }
 
     async function idcRegister(options) {
@@ -266,10 +262,11 @@
     async function swaLogin(options, reqOptions) {
       validateLogin(options);
       decodePrf(options);
-      return SimpleWebAuthnBrowser.startAuthentication({
+      let res = SimpleWebAuthnBrowser.startAuthentication({
         optionsJSON: options,
         useBrowserAutofill: reqOptions !== undefined
       });
+      return res;
     }
 
     let operations = [idcRegister, idcLogin, swaRegister, swaLogin];
@@ -367,9 +364,10 @@
           }
         };
         request.extensions.uvm = true;
+        // 'read' and 'write' are exclusive
         request.extensions.largeBlob = {
           "//read": true,
-          "//write": "dGhpcyBpcyBkdW1teQ"
+          "write": "dGhpcyBpcyBkdW1teQ"
         };
         if (isRegister) {
           request.extensions.credProps = true;
