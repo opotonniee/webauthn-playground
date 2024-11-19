@@ -365,15 +365,17 @@
         };
         request.extensions.uvm = true;
         // 'read' and 'write' are exclusive
+        // "read": true
         request.extensions.largeBlob = {
-          "//read": true,
           "write": "dGhpcyBpcyBkdW1teQ"
         };
         if (isRegister) {
           request.extensions.credProps = true;
-          request.extensions["//payment"] = {
+          /* TBD Payment
+          request.extensions["payment"] = {
             isPayment: true
           };
+          */
           request.extensions.largeBlob = {
             support: "preferred"
           };
