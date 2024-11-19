@@ -133,39 +133,32 @@ class IdCloud {
     return credName;
   }
 
-  #toJsonObject(val) {
-    const TO_SKIP = [
-      "toJSON"
-    ];
+  #toIdCloudJson(val) {
+    const TO_SKIP = [];
     let res;
     if (typeof (val) === "string" ||
       typeof (val) === "boolean" ||
       typeof (val) === "number") {
       res = val;
-    } else if (val instanceof ArrayBuffer) {
+    } else if (ArrayBuffer.isView(val) || val instanceof ArrayBuffer) {
       res = IdCloud.Utils.bytesToBase64url(val);
     } else if (Array.isArray(val)) {
       res = [];
       for (let item of val) {
-        res.push(this.#toJsonObject(item));
+        res.push(this.#toIdCloudJson(item));
       }
     } else if (typeof (val) === "object") {
       res = {};
       for (const name in val) {
         if (!TO_SKIP.includes(name)) {
-          if (typeof (val[name]) === "function") {
-            // preserve 'this'
-            res[name] = () => val[name]();
-          } else {
-            res[name] = this.#toJsonObject(val[name]);
-          }
+          res[name] = this.#toIdCloudJson(val[name]);
         }
       }
     }
     return res;
   }
 
-  #fromJsonObject(val, scopedName) {
+  #fromIdCloudJson(val, scopedName) {
     const
       TO_SKIP = [
         "status",
@@ -205,7 +198,7 @@ class IdCloud {
     } else if (Array.isArray(val)) {
       res = [];
       for (let item of val) {
-        res.push(this.#fromJsonObject(item, (scopedName || "") + "[]"));
+        res.push(this.#fromIdCloudJson(item, (scopedName || "") + "[]"));
       }
     } else if (typeof (val) === "object") {
       res = {};
@@ -218,12 +211,7 @@ class IdCloud {
             childScopedName = scopedName + "." + name;
           }
         }
-        if (typeof (val[name]) === "function") {
-          // preserve 'this'
-          res[name] = () => val[name]();
-        } else {
-          res[name] = this.#fromJsonObject(val[name], childScopedName);
-        }
+        res[name] = this.#fromIdCloudJson(val[name], childScopedName);
       }
     }
     return res;
@@ -234,7 +222,7 @@ class IdCloud {
     this.#setHints(pubKeyOptions);
     this.#setCredProps(pubKeyOptions);
     const createOptions = {
-      publicKey: this.#fromJsonObject(pubKeyOptions)
+      publicKey: this.#fromIdCloudJson(pubKeyOptions)
     };
 
     IdCloud.#debug("[IdCloud] Create credential options (pk):", createOptions);
@@ -242,13 +230,15 @@ class IdCloud {
     IdCloud.#debug("[IdCloud] Create credential ok:", credential);
 
     credential.clientExtensionResults = credential.getClientExtensionResults() || {};
-    const result = this.#toJsonObject(credential);
+    const result = this.#toIdCloudJson(credential);
+    // getter for original authenticator response
+    result.getCredential = () => credential;
 
     if (this.#options.version == IdCloud.API_V2) {
       result.response.transports =
-        this.#getOptionalFunctionValue(result.response.getTransports);
+        this.#getOptionalFunctionValue(credential.response.getTransports);
       result.response.publicKeyAlgorithm =
-        this.#getOptionalFunctionValue(result.response.getPublicKeyAlgorithm);
+        this.#getOptionalFunctionValue(credential.response.getPublicKeyAlgorithm);
     }
     // Add thales "friendly name" extension
     let credName = this.#getCredName(credential, options);
@@ -272,7 +262,7 @@ class IdCloud {
   async authenticate(pubKeyOptions, credentialReqOptions) {
 
     const getOptions = {
-      publicKey: this.#fromJsonObject(pubKeyOptions)
+      publicKey: this.#fromIdCloudJson(pubKeyOptions)
     };
     // shallow copy of credentialReqOptions to getOptions
     Object.assign(getOptions, credentialReqOptions);
@@ -284,7 +274,9 @@ class IdCloud {
     IdCloud.#debug("[IdCloud] Get credential ok:", assertion);
 
     assertion.clientExtensionResults = assertion.getClientExtensionResults() || {};
-    const result = this.#toJsonObject(assertion);
+    const result = this.#toIdCloudJson(assertion);
+    // getter for original authenticator response
+    result.getAssertion = () => assertion;
 
     // Copy token challenge extension from request if it was present
     if (pubKeyOptions?.extensions?.thalesgroup_chl_tkn_ext_v1) {
