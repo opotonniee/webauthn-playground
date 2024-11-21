@@ -101,9 +101,9 @@ class IdCloud {
       if (Array.isArray(this.#options.fido.hints)) {
         requestOptions.hints = this.#options.fido.hints;
       } else if (typeof this.#options.fido.hints === "string") {
-        requestOptions.hints = [ this.#options.fido.hints ];
+        requestOptions.hints = [this.#options.fido.hints];
       } else {
-        console.error("Invalid 'hints' value (should be a string or an array of strings)")
+        console.error("Invalid 'hints' value (should be a string or an array of strings)");
       }
     }
   }
@@ -133,12 +133,19 @@ class IdCloud {
     return credName;
   }
 
+  #isBasicValue(value) {
+    return (typeof (value) === "string" ||
+      typeof (value) === "boolean" ||
+      typeof (value) === "number" ||
+      typeof (value) === "bigint" ||
+      value === null ||
+      value === undefined);
+  }
+
   #toIdCloudJson(val) {
     const TO_SKIP = [];
     let res;
-    if (typeof (val) === "string" ||
-      typeof (val) === "boolean" ||
-      typeof (val) === "number") {
+    if (this.#isBasicValue(val)) {
       res = val;
     } else if (ArrayBuffer.isView(val) || val instanceof ArrayBuffer) {
       res = IdCloud.Utils.bytesToBase64url(val);
@@ -151,7 +158,10 @@ class IdCloud {
       res = {};
       for (const name in val) {
         if (!TO_SKIP.includes(name)) {
-          res[name] = this.#toIdCloudJson(val[name]);
+          let tmp = this.#toIdCloudJson(val[name]);
+          if (tmp !== null && tmp !== undefined) {
+            res[name] = tmp;
+          }
         }
       }
     }
@@ -190,10 +200,8 @@ class IdCloud {
     if (TO_SKIP.includes(scopedName)) {
       // skip
     } else if (B64.includes(scopedName)) {
-        res = IdCloud.Utils.base64urlToBytes(val);
-    } else if (typeof (val) === "string" ||
-      typeof (val) === "boolean" ||
-      typeof (val) === "number") {
+      res = IdCloud.Utils.base64urlToBytes(val);
+    } else if (this.#isBasicValue(val)) {
       res = val;
     } else if (Array.isArray(val)) {
       res = [];
@@ -206,7 +214,7 @@ class IdCloud {
         let childScopedName = name;
         if (scopedName) {
           if (ANY.includes(scopedName.substring(0, scopedName.lastIndexOf('.')))) {
-            childScopedName = scopedName + ".*"
+            childScopedName = scopedName + ".*";
           } else {
             childScopedName = scopedName + "." + name;
           }
