@@ -545,6 +545,11 @@
       $(".setting").show();
     });
     $("#js-lib").on("change", hideSettings);
+    $("#js-lib").on("keyup", ()=> {
+      if (event.key== "Escape") {
+        hideSettings();
+      }
+    });
     $("#title").on("click", hideSettings);
 
     // Reset JSON input
