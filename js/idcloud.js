@@ -133,13 +133,17 @@ class IdCloud {
     return credName;
   }
 
+  #isNotSet(value) {
+    return value === null ||
+    value === undefined;
+  }
+
   #isBasicValue(value) {
     return (typeof (value) === "string" ||
       typeof (value) === "boolean" ||
       typeof (value) === "number" ||
       typeof (value) === "bigint" ||
-      value === null ||
-      value === undefined);
+      this.#isNotSet(value));
   }
 
   #toIdCloudJson(val) {
@@ -159,7 +163,7 @@ class IdCloud {
       for (const name in val) {
         if (!TO_SKIP.includes(name)) {
           let tmp = this.#toIdCloudJson(val[name]);
-          if (tmp !== null && tmp !== undefined) {
+          if (!this.#isNotSet(tmp)) {
             res[name] = tmp;
           }
         }
@@ -219,7 +223,10 @@ class IdCloud {
             childScopedName = scopedName + "." + name;
           }
         }
-        res[name] = this.#fromIdCloudJson(val[name], childScopedName);
+        let tmp = this.#fromIdCloudJson(val[name], childScopedName);
+        if (!this.#isNotSet(tmp)) {
+          res[name] = tmp;
+        }
       }
     }
     return res;
