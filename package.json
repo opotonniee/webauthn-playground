@@ -23,5 +23,8 @@
   "homepage": "https://github.com/opotonniee/webauthn-playground#readme",
   "devDependencies": {
     "eslint": "^8.57.0"
+  },
+  "dependencies": {
+    "webauthn-playground": "file:"
   }
 }
