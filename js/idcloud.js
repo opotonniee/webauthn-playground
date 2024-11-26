@@ -86,16 +86,6 @@ class IdCloud {
       PublicKeyCredential.isConditionalMediationAvailable();
   }
 
-  #getOptionalFunctionValue(fn) {
-    try {
-      if (typeof fn === "function") {
-        return fn();
-      }
-    } catch (err) {
-      console.error(`Ignored error while accessing ${fn.name}: ${err}`);
-    }
-  }
-
   #setHints(requestOptions) {
     if (requestOptions.hints == undefined && this.#options.fido.hints != undefined) {
       if (Array.isArray(this.#options.fido.hints)) {
@@ -250,10 +240,12 @@ class IdCloud {
     result.getCredential = () => credential;
 
     if (this.#options.version == IdCloud.API_V2) {
-      result.response.transports =
-        this.#getOptionalFunctionValue(credential.response.getTransports);
-      result.response.publicKeyAlgorithm =
-        this.#getOptionalFunctionValue(credential.response.getPublicKeyAlgorithm);
+      if (typeof credential.response?.getTransports === "function") {
+        result.response.transports = credential.response.getTransports();
+      }
+      if (typeof credential.response?.getPublicKeyAlgorithm === "function") {
+        result.response.publicKeyAlgorithm = credential.response.getPublicKeyAlgorithm();
+      }
     }
     // Add thales "friendly name" extension
     let credName = this.#getCredName(credential, options);
