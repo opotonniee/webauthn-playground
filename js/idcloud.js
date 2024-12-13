@@ -105,10 +105,8 @@ class IdCloud {
 
   #getCredName(credential, options) {
 
-    // default to authenticator's name if provided
-    let credName = credential.getClientExtensionResults()?.credProps?.authenticatorDisplayName;
-    // if not, compute a default name from user agent
-    credName = credName ? credName : navigator.userAgent.replaceAll(/[0-9;:./()]/ig, "").split(' ').slice(1, 4).join(" ");
+    // Compute a default name from user agent
+    let credName = navigator.userAgent.replaceAll(/[0-9;:./()]/ig, "").split(' ').slice(1, 4).join(" ");
 
     // if callback defined, ask app
     if (options && options.getCredName) {
