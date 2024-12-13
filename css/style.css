@@ -120,6 +120,11 @@ input[type="checkbox"]:checked {
   background-color: #F99;
 }
 
+#hints {
+  field-sizing: content;
+  overflow: hidden;
+}
+
 /* for 480px or less */
 @media screen and (max-width: 480px) {
   h1 {

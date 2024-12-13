@@ -325,7 +325,7 @@
       .add("userVerification", JsConfig.listType("required", "preferred", "discouraged"), "preferred", "FIDO credential filter", "0 1")
       .add("attestation", JsConfig.listType("none", "direct", "indirect", "enterprise"), "none", "Requested FIDO attestation type", "0")
       .add("sign", JsConfig.boolType(), false, "IdCloud Transaction Signature extension", "1")
-      .add("hints", JsConfig.listType("", "security-key", "client-device", "hybrid"), "", "Requested FIDO attestation type", "0 1")
+      .add("hints", JsConfig.listMultiType(["security-key", "client-device", "hybrid"]), [], "Client hints to simplify UX", "0 1")
       .add("extensions", JsConfig.boolType(), false, "Add extension", "0 1");
     let config = jsc._;
 
