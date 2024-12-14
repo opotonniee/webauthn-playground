@@ -120,9 +120,10 @@ input[type="checkbox"]:checked {
   background-color: #F99;
 }
 
-#hints {
+select[multiple] {
   field-sizing: content;
-  overflow: hidden;
+  overflow: auto;
+  max-height: 90px;
 }
 
 /* for 480px or less */
