@@ -231,14 +231,57 @@
     function validateLogin(options) {
     }
 
+    async function processSPC(options) {
+      const spcAvailable =
+        PaymentRequest &&
+        PaymentRequest.isSecurePaymentConfirmationAvailable &&
+        await PaymentRequest.isSecurePaymentConfirmationAvailable();
+
+      if (!spcAvailable) {
+        alert("Browser does not support SPC");
+        return;
+      }
+      const request = new PaymentRequest([{
+        supportedMethods: "secure-payment-confirmation",
+        data: {
+          credentialIds: options.allowCredentials,
+          rpId: location.hostname,
+          challenge: options.challenge,
+          instrument: options.extensions.payment.instrument,
+          payeeName: options.extensions.payment.payeeName,
+          payeeOrigin: options.extensions.payment.payeeOrigin,
+          locale: ["en"],
+          timeout: 360000,  // 6 minutes
+        }}], {
+          total: {
+            label: "Total",
+            amount: options.extensions.payment.total,
+          },
+        });
+
+      try {
+        const response = await request.show();
+        await response.complete('success');
+        return response.data;
+      } catch (err) {
+        alert("SPC cannot be used");
+      }
+    }
+
     async function idcRegister(options) {
       validateRegister(options);
       return idCloud.enroll(options/*, { getCredName: () => { return "test"; } }*/);
     }
 
     async function idcLogin(options, reqOptions) {
+
       validateLogin(options);
-      return idCloud.authenticate(options, reqOptions);
+
+      if (options.extensions?.payment?.isPayment) {
+        return processSPC(options);
+      } else {
+        return idCloud.authenticate(options, reqOptions);
+      }
     }
 
     function decodePrf(options) {
@@ -314,7 +357,7 @@
     }
     resetRequests();
 
-    let jsc = new JsConfig({ autoSave: true, version: 1 })
+    let jsc = new JsConfig({ autoSave: true, version: 2 })
       .add("userName", JsConfig.textType(".*"), "alex muller", "user name", "0")
       .add("textualUserId", JsConfig.boolType(), false, "Compute a textual user.id", "") // no displayed, automatically set based on selected lib
       .add("credId", JsConfig.textType(" *[^ ]* *"), "", "Expected credential id", "1")
@@ -326,7 +369,7 @@
       .add("attestation", JsConfig.listType("none", "direct", "indirect", "enterprise"), "none", "Requested FIDO attestation type", "0")
       .add("sign", JsConfig.boolType(), false, "IdCloud Transaction Signature extension", "1")
       .add("hints", JsConfig.listMultiType(["security-key", "client-device", "hybrid"]), [], "Client hints to simplify UX", "0 1")
-      .add("extensions", JsConfig.boolType(), false, "Add extension", "0 1");
+      .add("extensions", JsConfig.listMultiType(["prf", "uvm", "largeBlob", "credProps", "payment"]), [], "Add extension", "0 1");
     let config = jsc._;
 
     let isAutoFillSupported = false;
@@ -354,44 +397,72 @@
       (lower ? str.toLowerCase() : str).replace(/(?:^|\s|["'([{])+\S/g, match => match.toUpperCase());
 
     function setExtensions(request, isRegister) {
-      if (config.extensions) {
-        if (!request.extensions) {
-          request.extensions = {};
-        }
+      const useExt = (name) => config.extensions.includes(name);
+
+      request.extensions = request.extensions ? request.extensions : {};
+      // reset extensions
+      for (ext of ["prf", "credProps", "largeBlob",
+          "uvm", "payment"]) {
+          delete request.extensions[ext];
+      }
+
+      if (useExt("prf")) {
         request.extensions.prf = {
           eval: {
             first: "UlAgcHJvdmlkZWQgY29uc3RhbnQ"
           }
         };
+        /*
+        request.extensions.prf.evalByCredential = {
+          "e02eZ9lPp0UdkF4vGRO4-NxlhWBkL1FCmsmb1tTfRyE": {
+            first: "UlAgcHJvdmlkZWQgY29uc3RhbnQ"
+          }
+        };
+        */
+      }
+      if (useExt("uvm")) {
         request.extensions.uvm = true;
         // 'read' and 'write' are exclusive
         // "read": true
+      }
+      if (useExt("largeBlob")) {
         request.extensions.largeBlob = {
           "write": "dGhpcyBpcyBkdW1teQ"
         };
-        if (isRegister) {
+      }
+      if (useExt("payment")) {
+        request.extensions.payment = {
+          isPayment: true,
+          rpId: location.hostname,
+          topOrigin: location.hostname,
+          payeeName: "Merchant Shop",
+          payeeOrigin: "https://merchant.com",
+          total: {
+            currency: "USD",
+            value: "5.00",
+          },
+          instrument: {
+            displayName: "Fancy Card ****1234",
+            icon: "https://r7.pngwing.com/path/841/7/583/bank-credit-debt-consolidation-icon-bank-building-b9b506c1b5dc77b3a1495bad4677555c.png",
+          }
+        }
+      }
+      if (isRegister) {
+        if (useExt("credProps")) {
           request.extensions.credProps = true;
-          /* TBD Payment
-          request.extensions["payment"] = {
+        }
+        if (useExt("payment")) {
+          request.extensions.payment = {
             isPayment: true
           };
-          */
+        }
+        if (useExt("largeBlob")) {
           request.extensions.largeBlob = {
             support: "preferred"
           };
-        } /*else {
-          request.extensions.prf.evalByCredential = {
-            "e02eZ9lPp0UdkF4vGRO4-NxlhWBkL1FCmsmb1tTfRyE": {
-              first: "UlAgcHJvdmlkZWQgY29uc3RhbnQ"
-            }
-          };
-        }*/
-      } else if (request.extensions) {
-        for (ext of ["prf", "credProps", "largeBlob", "supplementalPubKeys",
-          "uvm", "payment", "//payment"]) {
-          delete request.extensions[ext];
         }
       }
+
       if (JSON.stringify(request.extensions) === '{}') {
         delete request.extensions;
       }
@@ -406,7 +477,7 @@
         userVerification: config.userVerification ? config.userVerification : undefined,
         authenticatorAttachment: config.authenticatorAttachment ? config.authenticatorAttachment : undefined
       };
-      request.hints = config.hints ? [config.hints] : undefined;
+      request.hints = config.hints?.length ? config.hints : undefined;
       request.attestation = config.attestation;
       request.user = { // all fields are REQUIRED
         name: config.userName,
@@ -437,7 +508,7 @@
         "type": "public-key",
         "id": config.credId,
       }] : [];
-      request.hints = config.hints ? [config.hints] : undefined;
+      request.hints = config.hints?.length ? config.hints : undefined;
       try {
         if (request.allowCredentials?.length > 0 && config.transports) {
           request.allowCredentials[0].transports = JSON.parse(config.transports);
@@ -690,7 +761,7 @@
         let clientData = JSON.parse(new TextDecoder().decode(base64url.decode(result.response.clientDataJSON)));
         let clientDataList = "<ul>";
         for (e in clientData) {
-          clientDataList += `<li><strong>${e}</strong>: ${clientData[e]}</li>`;
+          clientDataList += `<li><strong>${e}</strong>: ${JSON.stringify(clientData[e])}</li>`;
         }
         addRow("Client Data", clientDataList);
       }
