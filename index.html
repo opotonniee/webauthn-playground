@@ -232,21 +232,27 @@
     }
 
     async function processSPC(options) {
+
       const spcAvailable =
-        PaymentRequest &&
+        PaymentRequest /*&&
         PaymentRequest.isSecurePaymentConfirmationAvailable &&
-        await PaymentRequest.isSecurePaymentConfirmationAvailable();
+        await PaymentRequest.isSecurePaymentConfirmationAvailable()*/;
 
       if (!spcAvailable) {
         alert("Browser does not support SPC");
         return;
       }
+      let credIds = [];
+      for (c of options.allowCredentials) {
+        credIds.push(IdCloud.Utils.base64urlToBytes(c.id));
+      }
+
       const request = new PaymentRequest([{
         supportedMethods: "secure-payment-confirmation",
         data: {
-          credentialIds: options.allowCredentials,
+          credentialIds: credIds,
           rpId: location.hostname,
-          challenge: options.challenge,
+          challenge: IdCloud.Utils.base64urlToBytes(options.challenge),
           instrument: options.extensions.payment.instrument,
           payeeName: options.extensions.payment.payeeName,
           payeeOrigin: options.extensions.payment.payeeOrigin,
@@ -262,7 +268,14 @@
       try {
         const response = await request.show();
         await response.complete('success');
-        return response.data;
+        const res = response.details ? response.details : response.data;
+        // base64 encoding
+        const ret = JSON.parse(JSON.stringify(res));
+        ret.rawId = IdCloud.Utils.bytesToBase64url(res.rawId);
+        for (r of ["authenticatorData", "clientDataJSON", "signature", "userHandle"]) {
+          ret.response[r] = IdCloud.Utils.bytesToBase64url(res.response[r]);
+        }
+        return ret;
       } catch (err) {
         alert("SPC cannot be used");
       }
