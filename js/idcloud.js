@@ -15,15 +15,97 @@ class IdCloud {
     return {
       bytesToBase64url: function (bytes) {
         const arrayBuf = ArrayBuffer.isView(bytes) ? bytes : new Uint8Array(bytes);
-        const binString = Array.from(arrayBuf, (x) => String.fromCodePoint(x)).join("");
-        return btoa(binString).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+        const binString = Array.from(arrayBuf, (x) =>
+           String.fromCodePoint(x)).join("");
+        return btoa(binString).replaceAll("+", "-").replaceAll("/", "_")
+          .replaceAll("=", "");
       },
 
       base64urlToBytes: function (base64) {
         const padding = "====".substring(base64.length % 4);
-        const binString = atob(base64.replaceAll("-", "+").replaceAll("_", "/") + (padding.length < 4 ? padding : ""));
+        const binString = atob(base64.replaceAll("-", "+")
+          .replaceAll("_", "/") + (padding.length < 4 ? padding : ""));
         return Uint8Array.from(binString, (m) => m.codePointAt(0));
+      },
+
+      isNotSet: function (value) {
+        return value === null ||
+        value === undefined;
+      },
+
+      isBasicValue: function(value) {
+        return (typeof (value) === "string" ||
+          typeof (value) === "boolean" ||
+          typeof (value) === "number" ||
+          typeof (value) === "bigint" ||
+          this.isNotSet(value));
+      },
+
+      fromB64Json: function(val, scopedName, options) {
+          const isIn = (arr, name) =>
+            options && options[arr] && options[arr].includes(name);
+          let res;
+          if (isIn("toSkip", scopedName)) {
+            // skip
+          } else if (isIn("b64", scopedName)) {
+            res = this.base64urlToBytes(val);
+          } else if (this.isBasicValue(val)) {
+            res = val;
+          } else if (Array.isArray(val)) {
+            res = [];
+            for (const item of val) {
+              const childScopedName = (scopedName || "") + "[]";
+              const childValue = this.fromB64Json(item, childScopedName, options);
+              res.push(childValue);
+            }
+          } else if (typeof (val) === "object") {
+            res = {};
+            for (const name in val) {
+              let childScopedName = name;
+              if (scopedName) {
+                if (isIn("any", (scopedName.substring(0, scopedName.lastIndexOf('.'))))) {
+                  childScopedName = scopedName + ".*";
+                } else {
+                  childScopedName = scopedName + "." + name;
+                }
+              }
+              const tmp = this.fromB64Json(
+                val[name], childScopedName, options);
+              if (!this.isNotSet(tmp)) {
+                res[name] = tmp;
+              }
+            }
+          }
+          return res;
+      },
+
+      toB64Json: function(val, options) {
+        const isIn = (arr, name) =>
+          options && options[arr] && options[arr].includes(name);
+        let res;
+        if (this.isBasicValue(val)) {
+          res = val;
+        } else if (ArrayBuffer.isView(val) || val instanceof ArrayBuffer) {
+          res = this.bytesToBase64url(val);
+        } else if (Array.isArray(val)) {
+          res = [];
+          for (const item of val) {
+            res.push(this.toB64Json(item, options));
+          }
+        } else if (typeof (val) === "object") {
+          res = {};
+          for (const name in val) {
+            if (!isIn("toSkip", name)) {
+              const tmp = this.toB64Json(val[name], options);
+              if (!this.isNotSet(tmp)) {
+                res[name] = tmp;
+              }
+            }
+          }
+        }
+        return res;
       }
+
     };
   }
 
@@ -58,7 +140,7 @@ class IdCloud {
     this.isFido2Available().then(yes => {
       if (!yes) {
         console.warn("!! WebAuthn is not available");
-        let webAuthnElements = document.getElementsByClassName("idcloud-webauthn");
+        const webAuthnElements = document.getElementsByClassName("idcloud-webauthn");
         webAuthnElements.length && webAuthnElements.forEach((elt) => { elt.style.display = "none"; });
       } else {
         IdCloud.#debug("[IdCloud] WebAuthn is available :)");
@@ -70,7 +152,7 @@ class IdCloud {
     const usePlatformFIDO = this.#options.fido.usePlatformFIDO;
     const useRoamingFIDO = this.#options.fido.useRoamingFIDO;
     return new Promise(function (resolve) {
-      let fidoSupported = (typeof window.PublicKeyCredential === "function");
+      const fidoSupported = (typeof window.PublicKeyCredential === "function");
       if (fidoSupported && !useRoamingFIDO && usePlatformFIDO) {
         PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(res => {
           resolve(res);
@@ -121,58 +203,19 @@ class IdCloud {
     return credName;
   }
 
-  #isNotSet(value) {
-    return value === null ||
-    value === undefined;
-  }
-
-  #isBasicValue(value) {
-    return (typeof (value) === "string" ||
-      typeof (value) === "boolean" ||
-      typeof (value) === "number" ||
-      typeof (value) === "bigint" ||
-      this.#isNotSet(value));
-  }
-
-  #toIdCloudJson(val) {
-    const TO_SKIP = [];
-    let res;
-    if (this.#isBasicValue(val)) {
-      res = val;
-    } else if (ArrayBuffer.isView(val) || val instanceof ArrayBuffer) {
-      res = IdCloud.Utils.bytesToBase64url(val);
-    } else if (Array.isArray(val)) {
-      res = [];
-      for (let item of val) {
-        res.push(this.#toIdCloudJson(item));
-      }
-    } else if (typeof (val) === "object") {
-      res = {};
-      for (const name in val) {
-        if (!TO_SKIP.includes(name)) {
-          let tmp = this.#toIdCloudJson(val[name]);
-          if (!this.#isNotSet(tmp)) {
-            res[name] = tmp;
-          }
-        }
-      }
-    }
-    return res;
-  }
-
-  #fromIdCloudJson(val, scopedName) {
-    const
-      TO_SKIP = [
+  static get #FROM_OPTIONS() {
+    return {
+      toSkip: [
         "status",
         "errorMessage",
         "thalesgroup_chl_tkn_ext_v1",
         "thalesgroup_ext_v1",
         "thalesgroup_txn_ext_v1"
       ],
-      ANY = [
+      any: [
         "extensions.prf.evalByCredential"
       ],
-      B64 = [
+      b64: [
         "challenge",
         "user.id",
         "excludeCredentials[].id",
@@ -186,46 +229,23 @@ class IdCloud {
         "response.clientDataJSON",
         "response.signature",
         "response.userHandle"
-      ];
+      ]
+    };
+  };
 
-    let res;
-    if (TO_SKIP.includes(scopedName)) {
-      // skip
-    } else if (B64.includes(scopedName)) {
-      res = IdCloud.Utils.base64urlToBytes(val);
-    } else if (this.#isBasicValue(val)) {
-      res = val;
-    } else if (Array.isArray(val)) {
-      res = [];
-      for (let item of val) {
-        res.push(this.#fromIdCloudJson(item, (scopedName || "") + "[]"));
-      }
-    } else if (typeof (val) === "object") {
-      res = {};
-      for (const name in val) {
-        let childScopedName = name;
-        if (scopedName) {
-          if (ANY.includes(scopedName.substring(0, scopedName.lastIndexOf('.')))) {
-            childScopedName = scopedName + ".*";
-          } else {
-            childScopedName = scopedName + "." + name;
-          }
-        }
-        let tmp = this.#fromIdCloudJson(val[name], childScopedName);
-        if (!this.#isNotSet(tmp)) {
-          res[name] = tmp;
-        }
-      }
-    }
-    return res;
-  }
+  static get #TO_OPTIONS() {
+    return {
+      toSkip: []
+    };
+  };
 
   async enroll(pubKeyOptions, options) {
 
     this.#setHints(pubKeyOptions);
     this.#setCredProps(pubKeyOptions);
     const createOptions = {
-      publicKey: this.#fromIdCloudJson(pubKeyOptions)
+      publicKey: IdCloud.Utils.fromB64Json(
+        pubKeyOptions, "", IdCloud.#FROM_OPTIONS)
     };
 
     IdCloud.#debug("[IdCloud] Create credential options (pk):", createOptions);
@@ -233,7 +253,7 @@ class IdCloud {
     IdCloud.#debug("[IdCloud] Create credential ok:", credential);
 
     credential.clientExtensionResults = credential.getClientExtensionResults() || {};
-    const result = this.#toIdCloudJson(credential);
+    const result = IdCloud.Utils.toB64Json(credential, IdCloud.#TO_OPTIONS);
     // getter for original authenticator response
     result.getCredential = () => credential;
 
@@ -246,7 +266,7 @@ class IdCloud {
       }
     }
     // Add thales "friendly name" extension
-    let credName = this.#getCredName(credential, options);
+    const credName = this.#getCredName(credential, options);
     result.clientExtensionResults.thalesgroup_ext_v1 = {
       authenticatorDescription: {
         friendlyName: credName
@@ -267,7 +287,8 @@ class IdCloud {
   async authenticate(pubKeyOptions, credentialReqOptions) {
 
     const getOptions = {
-      publicKey: this.#fromIdCloudJson(pubKeyOptions)
+      publicKey: IdCloud.Utils.fromB64Json(
+        pubKeyOptions, "", IdCloud.#FROM_OPTIONS)
     };
     // shallow copy of credentialReqOptions to getOptions
     Object.assign(getOptions, credentialReqOptions);
@@ -279,7 +300,7 @@ class IdCloud {
     IdCloud.#debug("[IdCloud] Get credential ok:", assertion);
 
     assertion.clientExtensionResults = assertion.getClientExtensionResults() || {};
-    const result = this.#toIdCloudJson(assertion);
+    const result = IdCloud.Utils.toB64Json(assertion, IdCloud.#TO_OPTIONS);
     // getter for original authenticator response
     result.getAssertion = () => assertion;
 
