@@ -150,8 +150,8 @@ class IdCloud {
   }
 
 
-  static get API_V1() { return "v1" };
-  static get API_V2() { return "v2" };
+  static get API_V1() { return "v1" }
+  static get API_V2() { return "v2" }
 
   static get #DEFAULT_OPTIONS() {
     return {
@@ -281,13 +281,13 @@ class IdCloud {
         "response.userHandle"
       ]
     };
-  };
+  }
 
   static get #TO_OPTIONS() {
     return {
       toSkip: []
     };
-  };
+  }
 
   /**
     * Run a WebAuthn registration (using `credentials.create()`)
