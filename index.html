@@ -254,7 +254,7 @@
           payeeOrigin: options.extensions.payment.payeeOrigin,
           locale: ["en"],
           timeout: 360000,  // 6 minutes
-        }, "", { b64: ["credentialIds[]", "challenge"]})}], {
+        }, { b64: ["credentialIds[]", "challenge"]})}], {
           total: {
             label: "Total",
             amount: options.extensions.payment.total,

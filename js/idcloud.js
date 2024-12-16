@@ -13,6 +13,11 @@ class IdCloud {
 
   static get Utils() {
     return {
+      /**
+       * Returns the base64-url encoded value of a bytes array or an ArrayBuffer
+       * @param {*} bytes array or an ArrayBuffer to encode
+       * @returns base64-url encoded value
+       */
       bytesToBase64url: function (bytes) {
         const arrayBuf = ArrayBuffer.isView(bytes) ? bytes : new Uint8Array(bytes);
         const binString = Array.from(arrayBuf, (x) =>
@@ -21,6 +26,11 @@ class IdCloud {
           .replaceAll("=", "");
       },
 
+      /**
+       * Returns the ArrayBuffer resulting from the decoding of a base64-url encoded value
+       * @param {*} base64-url encoded value
+       * @returns decoded ArrayBuffer
+       */
       base64urlToBytes: function (base64) {
         const padding = "====".substring(base64.length % 4);
         const binString = atob(base64.replaceAll("-", "+")
@@ -28,11 +38,21 @@ class IdCloud {
         return Uint8Array.from(binString, (m) => m.codePointAt(0));
       },
 
+      /**
+       * Returns true if a value is null or undefined
+       * @param {*} a value
+       * @returns true is null or undefined
+       */
       isNotSet: function (value) {
         return value === null ||
         value === undefined;
       },
 
+      /**
+       * Returns true if a value is a Javascript basic type: string, boolean, number, bigint, null, or undefined
+       * @param {*} a value
+       * @returns true if the value is a Javascript basic type
+       */
       isBasicValue: function(value) {
         return (typeof (value) === "string" ||
           typeof (value) === "boolean" ||
@@ -41,7 +61,18 @@ class IdCloud {
           this.isNotSet(value));
       },
 
-      fromB64Json: function(val, scopedName, options) {
+      /**
+       * Returns a modified version of a Javascript value where:
+       *   - if a field name is listed in the `options.b64` string array, it is assumed to be a byte array or ArrayBuffer, and replaced by its base64-url encoded value.
+       *   - if a field name is listed in the `options.toSkip` string array, it is skipped and omitted in the returned value.
+       *   - if a field name is listed in the `options.any` string array, its children fields names are ignored and treated as a wildcard when evaluating `toSkip` or `b64` values.
+       *
+       * @param {*} val
+       * @param {object} [options]
+       * @param {string} [scopedName] don't set this value
+       * @returns {*}
+       */
+      fromB64Json: function(val, options, scopedName) {
           const isIn = (arr, name) =>
             options && options[arr] && options[arr].includes(name);
           let res;
@@ -55,7 +86,7 @@ class IdCloud {
             res = [];
             for (const item of val) {
               const childScopedName = (scopedName || "") + "[]";
-              const childValue = this.fromB64Json(item, childScopedName, options);
+              const childValue = this.fromB64Json(item, options, childScopedName);
               res.push(childValue);
             }
           } else if (typeof (val) === "object") {
@@ -70,7 +101,7 @@ class IdCloud {
                 }
               }
               const tmp = this.fromB64Json(
-                val[name], childScopedName, options);
+                val[name], options, childScopedName);
               if (!this.isNotSet(tmp)) {
                 res[name] = tmp;
               }
@@ -79,6 +110,15 @@ class IdCloud {
           return res;
       },
 
+      /**
+       * Returns a modified version of a Javascript value where
+       *   - all byte arrays or ArrayBuffers are converted to their base64-url encoded value
+       *   - fields listed in the `options.toSkip` string array are skipped and omitted in the returned value.
+       *
+       * @param {*} val
+       * @param {object} options
+       * @returns {*}
+       */
       toB64Json: function(val, options) {
         const isIn = (arr, name) =>
           options && options[arr] && options[arr].includes(name);
@@ -110,8 +150,8 @@ class IdCloud {
   }
 
 
-  static API_V1 = "v1";
-  static API_V2 = "v2";
+  static get API_V1() { return "v1" };
+  static get API_V2() { return "v2" };
 
   static get #DEFAULT_OPTIONS() {
     return {
@@ -133,6 +173,16 @@ class IdCloud {
   }
 
   #options = {};
+
+  /**
+   * Constructor
+   * @param {*} [options] may contain any of the following optional fields:
+   *  - version: Version of the IdCloud API. Should be the latest (IdCloud.API_V2)
+   *  - isUserIdTextual (boolean): should always be false: IdCloud provides a base64-encoded byte array
+   *  - fido.usePlatformFIDO (boolean): true if should use credentials provided by the platform
+   *  - fido.useRoamingFIDO (boolean): true if should use credentials provided by disconnectable devices (typically security keys)
+   *  - fido.hints: an array of strings indicating where the credential is expected to be stored
+   */
   constructor(options) {
     Object.assign(this.#options, IdCloud.#DEFAULT_OPTIONS);
     options ? Object.assign(this.#options, options) : false;
@@ -239,13 +289,21 @@ class IdCloud {
     };
   };
 
+  /**
+    * Run a WebAuthn registration (using `credentials.create()`)
+   *
+   * @param {*} pubKeyOptions the public key options (`publicKey` field) for the credential request
+   * @param {*} [options] an object which can optionally contain:
+   *   - `getCredName(defaultName)`: a callback for the application to provide the friendly name to assign to the created credential. `defaultName` is a proposed name generated by this library based on the browser "User-Agent" value.
+   * @returns
+   */
   async enroll(pubKeyOptions, options) {
 
     this.#setHints(pubKeyOptions);
     this.#setCredProps(pubKeyOptions);
     const createOptions = {
       publicKey: IdCloud.Utils.fromB64Json(
-        pubKeyOptions, "", IdCloud.#FROM_OPTIONS)
+        pubKeyOptions, IdCloud.#FROM_OPTIONS)
     };
 
     IdCloud.#debug("[IdCloud] Create credential options (pk):", createOptions);
@@ -284,11 +342,18 @@ class IdCloud {
     return result;
   }
 
+  /**
+   * Run a WebAuthn authentication (using `credentials.get()`)
+   *
+   * @param {*} pubKeyOptions the public key options (`publicKey` field) for the credential request
+   * @param {*} [credentialReqOptions] optional parameters for the credential request, such as conditional mediation options
+   * @returns
+   */
   async authenticate(pubKeyOptions, credentialReqOptions) {
 
     const getOptions = {
       publicKey: IdCloud.Utils.fromB64Json(
-        pubKeyOptions, "", IdCloud.#FROM_OPTIONS)
+        pubKeyOptions, IdCloud.#FROM_OPTIONS)
     };
     // shallow copy of credentialReqOptions to getOptions
     Object.assign(getOptions, credentialReqOptions);
