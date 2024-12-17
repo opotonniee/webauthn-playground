@@ -231,62 +231,14 @@
     function validateLogin(options) {
     }
 
-    async function processSPC(options) {
-
-      const spcAvailable =
-        PaymentRequest /*&&
-        PaymentRequest.isSecurePaymentConfirmationAvailable &&
-        await PaymentRequest.isSecurePaymentConfirmationAvailable()*/;
-
-      if (!spcAvailable) {
-        alert("Browser does not support SPC");
-        return;
-      }
-
-      const request = new PaymentRequest([{
-        supportedMethods: "secure-payment-confirmation",
-        data: IdCloud.Utils.fromB64Json({
-          credentialIds: options.allowCredentials.map((c) => c.id),
-          rpId: location.hostname,
-          challenge: options.challenge,
-          instrument: options.extensions.payment.instrument,
-          payeeName: options.extensions.payment.payeeName,
-          payeeOrigin: options.extensions.payment.payeeOrigin,
-          locale: ["en"],
-          timeout: 360000,  // 6 minutes
-        }, { b64: ["credentialIds[]", "challenge"]})}], {
-          total: {
-            label: "Total",
-            amount: options.extensions.payment.total,
-          },
-        });
-
-      try {
-        const response = await request.show();
-        await response.complete('success');
-        const res = response.details ? response.details : response.data;
-        // base64 encoding
-        const ret = IdCloud.Utils.toB64Json(res);
-        return ret;
-      } catch (err) {
-        alert("SPC cannot be used");
-      }
-    }
-
     async function idcRegister(options) {
       validateRegister(options);
       return idCloud.enroll(options/*, { getCredName: () => { return "test"; } }*/);
     }
 
     async function idcLogin(options, reqOptions) {
-
       validateLogin(options);
-
-      if (options.extensions?.payment?.isPayment) {
-        return processSPC(options);
-      } else {
-        return idCloud.authenticate(options, reqOptions);
-      }
+      return idCloud.authenticate(options, reqOptions);
     }
 
     function decodePrf(options) {

@@ -342,6 +342,46 @@ class IdCloud {
     return result;
   }
 
+  
+  async #processSPC(options) {
+
+    const spcAvailable =
+      PaymentRequest /*&&
+      PaymentRequest.isSecurePaymentConfirmationAvailable &&
+      await PaymentRequest.isSecurePaymentConfirmationAvailable()*/;
+
+    if (!spcAvailable) {
+      throw "Browser does not support SPC";
+    }
+
+    const request = new PaymentRequest([{
+      supportedMethods: "secure-payment-confirmation",
+      data: {
+        credentialIds: options.allowCredentials.map((c) => c.id),
+        rpId: options.extensions.payment.rpId,
+        challenge: options.challenge,
+        instrument: options.extensions.payment.instrument,
+        payeeName: options.extensions.payment.payeeName,
+        payeeOrigin: options.extensions.payment.payeeOrigin,
+        locale: ["en"],
+        timeout: options.timeout,
+      }}], {
+        total: {
+          label: "Total",
+          amount: options.extensions.payment.total,
+        }
+      });
+
+    try {
+      const response = await request.show();
+      await response.complete('success');
+      const res = response.details ? response.details : response.data;
+      return res;
+    } catch (err) {
+      throw "SPC cannot be used";
+    }
+  }
+
   /**
    * Run a WebAuthn authentication (using `credentials.get()`)
    *
@@ -361,8 +401,14 @@ class IdCloud {
     this.#setHints(getOptions.publicKey);
 
     IdCloud.#debug("[IdCloud] Get credential options:", getOptions);
-    const assertion = await navigator.credentials.get(getOptions);
+    let assertion;
+    if (getOptions.extensions?.payment?.isPayment) {
+      assertion = this.#processSPC(getOptions);
+    } else {
+      assertion = await navigator.credentials.get(getOptions);
+    }
     IdCloud.#debug("[IdCloud] Get credential ok:", assertion);
+    
 
     assertion.clientExtensionResults = assertion.getClientExtensionResults() || {};
     const result = IdCloud.Utils.toB64Json(assertion, IdCloud.#TO_OPTIONS);
