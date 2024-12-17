@@ -342,6 +342,51 @@ class IdCloud {
     return result;
   }
 
+  async #processSPC(options) {
+
+    const isSpcAvailable =
+      PaymentRequest /*&&
+      PaymentRequest.isSecurePaymentConfirmationAvailable &&
+      await PaymentRequest.isSecurePaymentConfirmationAvailable()*/;
+
+    if (!isSpcAvailable) {
+      throw "Browser does not support SPC";
+    }
+
+    try {
+      const request = new PaymentRequest([{
+        supportedMethods: "secure-payment-confirmation",
+        data: {
+          // required fields
+          challenge: options.challenge,
+          rpId: options.extensions.payment.rpId,
+          credentialIds: options.allowCredentials.map((c) => c.id),
+          instrument: options.extensions.payment.instrument,
+          // optional
+          timeout: options.timeout,
+          payeeName: options.extensions.payment?.payeeName,
+          payeeOrigin: options.extensions.payment?.payeeOrigin,
+          //extensions: TBD,
+          locale: options.extensions.payment?.locale,
+          showOptOut: options.extensions.payment?.showOptOut
+        }}], {
+          total: {
+            label: "Total",
+            amount: options.extensions.payment.total,
+          }
+        }
+      );
+
+      const response = await request.show();
+      await response.complete('success');
+      // spec says 'data', but chrome return 'details'
+      const res = response?.details ? response.details : response.data;
+      return res;
+    } catch (err) {
+      throw "SPC cannot be used";
+    }
+  }
+
   /**
    * Run a WebAuthn authentication (using `credentials.get()`)
    *
@@ -361,8 +406,14 @@ class IdCloud {
     this.#setHints(getOptions.publicKey);
 
     IdCloud.#debug("[IdCloud] Get credential options:", getOptions);
-    const assertion = await navigator.credentials.get(getOptions);
+    let assertion;
+    if (getOptions.publicKey.extensions?.payment?.isPayment) {
+      assertion = await this.#processSPC(getOptions.publicKey);
+    } else {
+      assertion = await navigator.credentials.get(getOptions);
+    }
     IdCloud.#debug("[IdCloud] Get credential ok:", assertion);
+
 
     assertion.clientExtensionResults = assertion.getClientExtensionResults() || {};
     const result = IdCloud.Utils.toB64Json(assertion, IdCloud.#TO_OPTIONS);
