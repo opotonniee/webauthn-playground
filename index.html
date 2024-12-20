@@ -142,11 +142,6 @@
 
   <h1 class="not-selectable">
     <span id="title">WebAuthn Playground</span>
-    <span id="settings" title="Configuration" class="clickable">⚙️</span>
-    <select id="js-lib" class="header-option setting">
-      <option value="0">IdCloud JS</option>
-      <option value="2">SimpleWebAuthn JS</option>
-    </select>
     <span id="about">
       <a href="https://github.com/opotonniee/webauthn-playground">
         <img class="icon" src="img/github-mark.svg" alt="github icon">
@@ -155,24 +150,16 @@
   </h1>
   <h2>Browser Capabilities</h2>
   <table id="support">
-    <tr class="support-jslib jslib0 jslib2">
+    <tr>
       <th></th>
-      <th class="support-jslib jslib0">WebAuthn w/ config</th>
-      <th class="support-jslib jslib2">WebAuthn</th>
+      <th>WebAuthn w/ config</th>
       <th>Auto-fill</th>
-      <th class="support-jslib jslib2">Platform</th>
     </tr>
-    <tr class="support-jslib jslib0">
+    <tr>
       <td>Your browser supports</td>
       <td id="idcwa"></td>
       <td id="idcaf"></td>
-      <td id="idcpf" class="support-jslib"></td>
-    </tr>
-    <tr class="support-jslib jslib2">
-      <td>Your browser supports</td>
-      <td id="swawa"></td>
-      <td id="swaaf"></td>
-      <td id="swapf" class="support-jslib jslib2"></td>
+      <td id="idcpf"></td>
     </tr>
   </table>
 
@@ -209,7 +196,6 @@
   </div>
 
   <script src="js/cash-8.1.4.min.js"></script>
-  <script src="js/simplewebauthn.js"></script>
   <script src="js/idcloud.js"></script>
   <script src="https://opotonniee.github.io/js-config/dist/js-config.js"></script>
   <script src="js/cbor.js"></script>
@@ -248,28 +234,8 @@
       }
     }
 
-    async function swaRegister(options) {
-      validateRegister(options);
-      decodePrf(options);
-      let res = SimpleWebAuthnBrowser.startRegistration({
-        optionsJSON: options
-      });
-      //delete res.response.authenticatorData;
-      //delete res.response.publicKey;
-      return res;
-    }
 
-    async function swaLogin(options, reqOptions) {
-      validateLogin(options);
-      decodePrf(options);
-      let res = SimpleWebAuthnBrowser.startAuthentication({
-        optionsJSON: options,
-        useBrowserAutofill: reqOptions !== undefined
-      });
-      return res;
-    }
-
-    let operations = [idcRegister, idcLogin, swaRegister, swaLogin];
+    let operations = [idcRegister, idcLogin];
     let operation;
     let RP_NAME = "webauthn-playground";
     let requestConfigurators = [configureRegister, configureLogin];
@@ -327,7 +293,7 @@
       .add("sign", JsConfig.boolType(), false, "IdCloud Transaction Signature extension", "1")
       .add("hints", JsConfig.listMultiType(["security-key", "client-device", "hybrid"]), [], "Client hints to simplify UX", "0 1")
       .add("extensions", JsConfig.listMultiType(["prf", "uvm", "largeBlob", "credProps", "payment"]), [], "Add extension", "0 1");
-    let config = jsc._;
+    let config = jsc.value;
 
     let isAutoFillSupported = false;
     async function showSupport() {
@@ -342,11 +308,6 @@
       isAutoFillSupported = await idCloud.isAutoFillSupported();
       $("#idcaf").text(isAutoFillSupported ? "✅" : "❌");
       $("#idcpf").text("N/A");
-      $("#swawa").text(SimpleWebAuthnBrowser.browserSupportsWebAuthn() ? "✅" : "❌");
-      $("#swaaf").text(await SimpleWebAuthnBrowser.browserSupportsWebAuthnAutofill() ? "✅" : "❌");
-      $("#swapf").text(await SimpleWebAuthnBrowser.platformAuthenticatorIsAvailable() ? "✅" : "❌");
-      $("#support .support-jslib").hide();
-      $("#support .jslib" + getJsLib()).show();
     }
     showSupport();
 
@@ -503,7 +464,7 @@
     }
 
     function saveConfig() {
-      localStorage.setItem("webauthn_pg_tests", JSON.stringify(config));
+      localStorage.setItem("webauthn_pg_tests", JSON.stringify(jsc.toJSON()));
     }
 
     function configChanged() {
@@ -528,18 +489,12 @@
       return Array.from(u8array).map(b => ("0" + b.toString(16)).slice(-2)).join('');
     }
 
-    function getJsLib() {
-      return Number.parseInt($("#js-lib").val());
-    }
-
     function getRequest() {
       let reqId = Number.parseInt(document.querySelector("input[name=request]:checked").value);
-      let jsLibId = getJsLib();
-      config.textualUserId = false; //jsLibId == 2; // SimpleWebAuthn uses textual user id
       return {
         request: requests[reqId],
         configurator: requestConfigurators[reqId],
-        operation: operations[reqId + jsLibId],
+        operation: operations[reqId],
         class: "." + reqId
       };
     }
@@ -561,24 +516,6 @@
     }
     updateRequest();
     $("input[name=request]").on("change", updateRequest);
-
-    // JS lib selector
-    function hideSettings() {
-      updateRequest();
-      $(".setting").hide();
-      $("#settings").show();
-    }
-    $("#settings").on("click", () => {
-      $("#settings").hide();
-      $(".setting").show();
-    });
-    $("#js-lib").on("change", hideSettings);
-    $("#js-lib").on("keyup", ()=> {
-      if (event.key== "Escape") {
-        hideSettings();
-      }
-    });
-    $("#title").on("click", hideSettings);
 
     // Reset JSON input
     $("#reset-input").on("click", () => {
