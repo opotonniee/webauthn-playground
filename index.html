@@ -159,7 +159,6 @@
       <td>Your browser supports</td>
       <td id="idcwa"></td>
       <td id="idcaf"></td>
-      <td id="idcpf"></td>
     </tr>
   </table>
 
@@ -307,7 +306,6 @@
       $("#idcwa").text(await idCloud.isFido2Available() ? "✅" : "❌");
       isAutoFillSupported = await idCloud.isAutoFillSupported();
       $("#idcaf").text(isAutoFillSupported ? "✅" : "❌");
-      $("#idcpf").text("N/A");
     }
     showSupport();
 
@@ -402,7 +400,7 @@
         displayName: capitalize(config.userName, true),
         // user.id is a byte buffer, and can be returned as the userHandle in authentication response,
         // Authenticators overwrite existing discoverable credentials that have the same rp.id and user.id
-        // NOte: IdCloud provides it as a base64 encoded bytes array, while SimpleWebAuthn uses the string's bytes
+        // Note: IdCloud always provides it as a base64 encoded bytes array
         id: config.textualUserId ? config.userName : base64url.encode(new TextEncoder().encode(config.userName))
       };
       setExtensions(request, true);
@@ -705,7 +703,7 @@
       if (result.response.getTransports) {
         result.response.transports = result.response.getTransports();
       }
-      if (result.response.transports) { // both IdCloud and SimpleWebAuthn return this
+      if (result.response.transports) { // IdCloud returns this it provided by the authenticator
         addRow("Transports", result.response.transports);
         config.transports = JSON.stringify(result.response.transports);
         $("#transports").val(config.transports);
