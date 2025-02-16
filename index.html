@@ -588,9 +588,12 @@
         (flag & 0x40) && flags.push("Attested data");
         (flag & 0x80) && flags.push("Extension data");
         const counter = new DataView(new Uint8Array(authenticatorData.slice(33, 37)).buffer).getUint32();
+        let sFlag = "";
+        for (let mask=0x80; mask >= 1; mask /= 2) {
+          sFlag += mask & flag ? "1" : "0";
+        }
         authDesc += nvListItem("Flags",
-          "0b" + ("00000000" + flag.toString(2)).slice(-8)
-          + (flags.length ? `  (${flags.toString().replaceAll(",", ", ")})` : ""));
+          "0b" + sFlag + (flags.length ? `  (${flags.toString().replaceAll(",", ", ")})` : ""));
         authDesc += nvListItem("Counter", counter);
         if (flag & 0x40) {
           let credData = "<ul>";
