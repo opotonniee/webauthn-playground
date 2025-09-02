@@ -306,9 +306,9 @@ class IdCloud {
         pubKeyOptions, IdCloud.#FROM_OPTIONS)
     };
 
-    IdCloud.#debug("[IdCloud] Create credential options (pk):", createOptions);
+    IdCloud.#debug("[IdCloud] Create credential options (pk): " + JSON.stringify(IdCloud.Utils.toB64Json(createOptions)), createOptions);
     const credential = await navigator.credentials.create(createOptions);
-    IdCloud.#debug("[IdCloud] Create credential ok:", credential);
+    IdCloud.#debug("[IdCloud] Create credential ok: " + JSON.stringify(IdCloud.Utils.toB64Json(credential)), credential);
 
     credential.clientExtensionResults = credential.getClientExtensionResults() || {};
     const result = IdCloud.Utils.toB64Json(credential, IdCloud.#TO_OPTIONS);
@@ -405,15 +405,14 @@ class IdCloud {
 
     this.#setHints(getOptions.publicKey);
 
-    IdCloud.#debug("[IdCloud] Get credential options:", getOptions);
+    IdCloud.#debug("[IdCloud] Get credential options: " + JSON.stringify(IdCloud.Utils.toB64Json(getOptions)), getOptions);
     let assertion;
     if (getOptions.publicKey.extensions?.payment?.isPayment) {
       assertion = await this.#processSPC(getOptions.publicKey);
     } else {
       assertion = await navigator.credentials.get(getOptions);
     }
-    IdCloud.#debug("[IdCloud] Get credential ok:", assertion);
-
+    IdCloud.#debug("[IdCloud] Get credential ok: " + JSON.stringify(IdCloud.Utils.toB64Json(assertion)), assertion);
 
     assertion.clientExtensionResults = assertion.getClientExtensionResults() || {};
     const result = IdCloud.Utils.toB64Json(assertion, IdCloud.#TO_OPTIONS);
