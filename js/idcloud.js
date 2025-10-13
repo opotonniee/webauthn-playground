@@ -235,22 +235,106 @@ class IdCloud {
     requestOptions.extensions.credProps = true;
   }
 
-  #getCredName(credential, options) {
+  #getCredAaguid(credential) {
+
+    /**
+    * Lightweight CBOR decoder that handles the types needed for WebAuthn.
+    *
+    * @param {ArrayBuffer} cborBuffer The ArrayBuffer containing CBOR data.
+    * @returns {object} The decoded JavaScript object.
+    */
+    const cborDecode = (cborBuffer) => {
+      const dataView = new DataView(cborBuffer);
+      let offset = 0;
+
+      const read = () => {
+        if (offset >= dataView.byteLength) throw new Error("CBOR decode: Unexpected end of buffer");
+        const initialByte = dataView.getUint8(offset++);
+        const majorType = initialByte >> 5;
+        const additionalInfo = initialByte & 0x1f;
+
+        const getLength = (info) => {
+          if (info < 24) return info;
+          switch (info) {
+            case 24: return dataView.getUint8(offset++);
+            case 25: offset += 2; return dataView.getUint16(offset - 2, false);
+            case 26: offset += 4; return dataView.getUint32(offset - 4, false);
+            case 27: offset += 8; return dataView.getBigUint64(offset - 8, false);
+            default: throw new Error("CBOR decode: Unsupported length encoding");
+          }
+        };
+
+        switch (majorType) {
+          case 0: // Unsigned Integer
+            return getLength(additionalInfo);
+
+          case 1: // Negative Integer
+            const val = getLength(additionalInfo);
+            return typeof val === 'bigint' ? -1n - val : -1 - val;
+
+          case 2: { // Byte string
+            const len = getLength(additionalInfo);
+            const bytes = new Uint8Array(dataView.buffer, offset, Number(len));
+            offset += Number(len);
+            return bytes;
+          }
+          case 3: { // Text string
+            const len = getLength(additionalInfo);
+            const bytes = new Uint8Array(dataView.buffer, offset, Number(len));
+            offset += Number(len);
+            return new TextDecoder("utf-8").decode(bytes);
+          }
+          case 5: { // Map
+            const map = {};
+            const len = getLength(additionalInfo);
+            for (let i = 0; i < len; i++) map[read()] = read();
+            return map;
+          }
+          default: throw new Error(`CBOR decode: Unsupported major type ${majorType}`);
+        }
+      };
+
+      return read();
+    };
+
+    try {
+      const decodedAttestation = cborDecode(credential.response.attestationObject);
+      const authData = decodedAttestation.authData;
+      if (!authData || !(authData[32] & (1 << 6))) {
+        return null;
+      }
+
+      const aaguid = authData.slice(37, 37 + 16);
+      const aaguidHex = Array.from(aaguid)
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+      // Format as a standard GUID string.
+      return `${aaguidHex.slice(0, 8)}-${aaguidHex.slice(8, 12)}-${aaguidHex.slice(12, 16)}-${aaguidHex.slice(16, 20)}-${aaguidHex.slice(20, 32)}`;
+
+    } catch (error) {
+      console.error("Failed to extract AAGUID:", error);
+      return null;
+    }
+  }
+
+  async #getCredName(credential, options) {
 
     // Compute a default name from user agent
-    let credName = navigator.userAgent.replaceAll(/[0-9;:./()]/ig, "").split(' ').slice(1, 4).join(" ");
+    const defName = navigator.userAgent.replaceAll(/[0-9;:./()]/ig, "").split(' ').slice(1, 4).join(" ");
+    let credName;
 
     // if callback defined, ask app
-    if (options && options.getCredName) {
-      const defName = credName;
-      credName = options.getCredName(defName);
-      credName = credName ? credName.trim() : null;
-      if (!credName) {
-        credName = defName;
+    if (options?.getCredName) {
+      credName = options.getCredName(defName, this.#getCredAaguid(credential));
+    } else if (options?.asyncGetCredName) {
+      try {
+        credName = await options.asyncGetCredName(defName, this.#getCredAaguid(credential));
+      } catch (error) {
+        console.error(error);
       }
     }
 
-    return credName;
+    return credName || defName;
   }
 
   static get #FROM_OPTIONS() {
@@ -324,10 +408,11 @@ class IdCloud {
       }
     }
     // Add thales "friendly name" extension
-    const credName = this.#getCredName(credential, options);
+    const credName = await this.#getCredName(credential, options);
+
     result.clientExtensionResults.thalesgroup_ext_v1 = {
       authenticatorDescription: {
-        friendlyName: credName
+        friendlyName: credName?.trim()
       }
     };
     // Add thales "client type" extension

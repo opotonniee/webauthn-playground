@@ -218,7 +218,7 @@
 
     async function idcRegister(options) {
       validateRegister(options);
-      return idCloud.enroll(options/*, { getCredName: () => { return "test"; } }*/);
+      return idCloud.enroll(options, { getCredName: (defName, aaguid) => ` ${aaguid} on ${defName} ` });
     }
 
     async function idcLogin(options, reqOptions) {
