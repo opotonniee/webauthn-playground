@@ -136,6 +136,13 @@
       }
     }
   </style>
+  <!-- privacy-friendly usage stats -->
+  <script>
+    // Only load on production environment.
+    if (window.location.host !== 'opoto.github.io')
+        window.goatcounter = {no_onload: true}
+  </script>
+  <script data-goatcounter="https://webauthn-playground.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
 
 <body>
