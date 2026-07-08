@@ -1,0 +1,562 @@
+let idCloud;
+
+const base64url = {
+  decode: IdCloud.Utils.base64urlToBytes,
+  encode: IdCloud.Utils.bytesToBase64url
+};
+
+function validateRegister(options) {
+  if (!config.userName) {
+    throw "User name is mandatory";
+  }
+}
+function validateLogin(options) {
+}
+
+async function idcRegister(options) {
+  validateRegister(options);
+  return idCloud.enroll(options, { getCredName: (defName, aaguid) => ` ${aaguid} on ${defName} ` });
+}
+
+async function idcLogin(options, reqOptions) {
+  validateLogin(options);
+  return idCloud.authenticate(options, reqOptions);
+}
+
+function decodePrf(options) {
+  if (options?.extensions?.prf?.eval?.first) {
+    options.extensions.prf.eval.first =
+      IdCloud.Utils.base64urlToBytes(options.extensions.prf.eval.first);
+  }
+}
+
+
+let operations = [idcRegister, idcLogin];
+let operation;
+let RP_NAME = "webauthn-playground";
+let requestConfigurators = [configureRegister, configureLogin];
+const REQ_REGISTER = {
+  "rp": {
+    origins: [origin],
+    id: origin.hostname,
+    name: RP_NAME
+  },
+  "challenge": "AAABeB78HrIemh1jTdJICr_3QG_RMOhp",
+  "pubKeyCredParams": [],
+  "excludeCredentials": [],
+  "timeout": 120000
+};
+const REQ_LOGIN = {
+  "challenge": "EGYtAMgi8B2Ey1FNVfVF93m5LEz_CfwTy00W2zoPEN4",
+  "timeout": 120000,
+  "rpId": origin.hostname,
+  "allowCredentials": []
+};
+const REQ_LOGIN_SIGN_EXT = // "thalesgroup_txn_ext_v1"
+{
+  "txnDigest": "QQh1hsMztUry9bhb7dJBQyCPbW0GCVmlOGgXcfcf_8A",
+  "txnDetails": [
+    { "operation": "transfer" },
+    { "beneficiary": "alice" },
+    { "amount": "USD 100" }
+  ],
+  "nonce": "AAABdhzkZmLlTio_PX1JhKOF7gOQzUSV",
+  "challengeDerivationScheme": 1
+};
+
+let requests;
+function resetRequests() {
+  requests = [JSON.parse(JSON.stringify(REQ_REGISTER)), JSON.parse(JSON.stringify(REQ_LOGIN))];
+}
+resetRequests();
+
+const KEY_ALGO_NAMES = {
+  "-7": "ES256",
+  "-257": "RS256",
+  "-8": "EdDSA",
+  "-35": "ES384",
+  "-36": "ES512",
+  "-48": "ML-DSA-44",
+  "-49": "ML-DSA-65",
+  "-50": "ML-DSA-87"
+};
+
+let jsc = new JsConfig({ autoSave: true, version: 2 })
+  .add("userName", JsConfig.textType(".*"), "alex muller", "user name", "0")
+  .add("textualUserId", JsConfig.boolType(), false, "Compute a textual user.id", "") // no displayed, automatically set based on selected lib
+  .add("credId", JsConfig.textType(" *[^ ]* *"), "", "Expected credential id", "1")
+  .add("transports", JsConfig.textType(/(^$|^\[[a-z",]*\]$)/), "", "Supported credential transport", "1")
+  .add("autoFill", JsConfig.boolType(), false, "Use last credential id", "1")
+  .add("authenticatorAttachment", JsConfig.listType("platform", "cross-platform", ""), "", "Authenticator type", "0")
+  .add("residentKey", JsConfig.listType("required", "preferred", "discouraged", ""), "preferred", "FIDO credential filter", "0")
+  .add("userVerification", JsConfig.listType("required", "preferred", "discouraged"), "preferred", "FIDO credential filter", "0 1")
+  .add("attestation", JsConfig.listType("none", "direct", "indirect", "enterprise"), "none", "Requested FIDO attestation type", "0")
+  .add("keyAlgos", JsConfig.listMultiType(Object.values(KEY_ALGO_NAMES)), Object.values(KEY_ALGO_NAMES), "Supported crypto Algos", "0")
+  .add("sign", JsConfig.boolType(), false, "IdCloud Transaction Signature extension", "1")
+  .add("hints", JsConfig.listMultiType(["security-key", "client-device", "hybrid"]), [], "Client hints to simplify UX", "0 1")
+  .add("extensions", JsConfig.listMultiType(["prf", "uvm", "largeBlob", "credProps", "payment"]), [], "Add extension", "0 1");
+let config = jsc.value;
+
+let isAutoFillSupported = false;
+async function showSupport() {
+  idCloud = new IdCloud({
+    fido: {
+      usePlatformFIDO: config.authenticatorAttachment != "cross-platform",
+      useRoamingFIDO: config.authenticatorAttachment != "platform"
+    },
+    version: IdCloud.API_V2
+  });
+  $("#idcwa").text(await idCloud.isFido2Available() ? "✅" : "❌");
+  isAutoFillSupported = await idCloud.isAutoFillSupported();
+  $("#idcaf").text(isAutoFillSupported ? "✅" : "❌");
+}
+showSupport();
+
+const capitalize = (str, lower = false) =>
+  (lower ? str.toLowerCase() : str).replace(/(?:^|\s|["'([{])+\S/g, match => match.toUpperCase());
+
+function setExtensions(request, isRegister) {
+  const useExt = (name) => config.extensions.includes(name);
+
+  request.extensions = request.extensions ? request.extensions : {};
+  // reset extensions
+  for (ext of ["prf", "credProps", "largeBlob", "uvm", "payment"]) {
+      delete request.extensions[ext];
+  }
+
+  if (useExt("prf")) {
+    request.extensions.prf = {
+      eval: {
+        first: "UlAgcHJvdmlkZWQgY29uc3RhbnQ"
+      }
+    };
+    /*
+    request.extensions.prf.evalByCredential = {
+      "e02eZ9lPp0UdkF4vGRO4-NxlhWBkL1FCmsmb1tTfRyE": {
+        first: "UlAgcHJvdmlkZWQgY29uc3RhbnQ"
+      }
+    };
+    */
+  }
+  if (useExt("uvm")) {
+    request.extensions.uvm = true;
+    // 'read' and 'write' are exclusive
+    // "read": true
+  }
+  if (useExt("largeBlob")) {
+    request.extensions.largeBlob = {
+      "write": "dGhpcyBpcyBkdW1teQ"
+    };
+  }
+  if (useExt("payment")) {
+    request.extensions.payment = {
+      isPayment: true,
+      rpId: location.hostname,
+      topOrigin: location.hostname,
+      payeeName: "Merchant Shop",
+      payeeOrigin: "https://merchant.com",
+      total: {
+        currency: "USD",
+        value: "5.00",
+      },
+      instrument: {
+        displayName: "Fancy Card ****1234",
+        icon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAQCAYAAAAMJL+VAAAACXBIWXMAAACxAAAAsQHGLUmNAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAAvJJREFUOI11lMtu5FQQhj+fc9ydZATkPkQzmeeAQQKx5AV4AZ4JiRcYiQ0L9qyQgB2gDBoxkJAQSOfSCbm1+2K76mdhdydphoV17HKduvxV/599/sU331ZV+RwRhQCQBAIhJACRZYEQAmaGWT2zS2r9m9vTb0l2dHT0Q6qr6vnJ8UmUhLvPHKbv0zPPu4QQGY0GVFWJu+MuXN74uLc2n9ri6dn5+wmIktjaegwEbm4Lri4v7ioDJAgx4OZUdXWvyiaw1ASV/H4HIGKaQnJ8fAqAmT1wkkRKOXKoqhK58Ln/s67nkkoiId4IyTRxCImUctyNshzPBWsfn0/S2EDMOvjsk3224l/o9h9+/angy4tPyfMuMSbcnfGowN3mYHmYZOnRIpubG3Q6C7zceQmCFFOi211kffGK7vUFdnXGGgUL3SVcws0YjQoqqx9C4prD3tl++oSFxUe89fYq0g6CBqIQIns7N6zXN6iYcFhs4mown0xGzVzehL3fweISv73eZWVtjZT6SN5AVNUlo3HBV7sfI8BlWG1U1XVTod9VOE3yf0Muq4qTXq/tquFQQmB1Td7JwbzZSUQWAjFE3IzaDLKMEJoC3DPMMmIMQMa4nNDNu4QsQMgQzrAYEUJBUsvGDz96j37/hmJQEmKHi4tT1jeWGY+NkDrg4vqyj5mzvLqOmVNVY1aWlzg8PGNldQNRsvzOImurS7x48TXA3Rb9/OMvVLVRljXmRjkeMxxcMZlUWDtscMyMs7NjyKDTWeC8H7m8vOa8f4xUE2NGljmj4Q1m9V2C09P+A6rLncHgdo7+Qu4NfKlLMRi2izDEzWaycV9yklqibb37mJSnNrhwHFqtUXua1RwcHBFjjssoJ2PKasL2s6d08pw/Dw7ZfvaE8WTC7u97DUSSTFI86vUa8XooWA9ELKaclDoNq0fDVpecg/2Dmc+rV69xN9wdkKW/e73v9v7Y/0BS/I/kTVOIgsRyFDbSRtgto6ileyZSMrc9f2/Mc5XutMXjh8AAAAASUVORK5CYII=",
+      }
+    }
+  }
+  if (isRegister) {
+    if (useExt("credProps")) {
+      request.extensions.credProps = true;
+    }
+    if (useExt("payment")) {
+      request.extensions.payment = {
+        isPayment: true
+      };
+    }
+    if (useExt("largeBlob")) {
+      request.extensions.largeBlob = {
+        support: "preferred"
+      };
+    }
+  }
+
+  if (JSON.stringify(request.extensions) === '{}') {
+    delete request.extensions;
+  }
+}
+
+function configureRegister(request) {
+  $("#userLogin").hide();
+  cancelAutoFill();
+  request.authenticatorSelection = {
+    residentKey: config.residentKey ? config.residentKey : undefined,
+    requireResidentKey: config.residentKey ? config.residentKey == "required" : undefined,
+    userVerification: config.userVerification ? config.userVerification : undefined,
+    authenticatorAttachment: config.authenticatorAttachment ? config.authenticatorAttachment : undefined
+  };
+  request.hints = config.hints?.length ? config.hints : undefined;
+  request.attestation = config.attestation;
+  request.user = { // all fields are REQUIRED
+    name: config.userName,
+    displayName: capitalize(config.userName, true),
+    // user.id is a byte buffer, and can be returned as the userHandle in authentication response,
+    // Authenticators overwrite existing discoverable credentials that have the same rp.id and user.id
+    // Note: IdCloud always provides it as a base64 encoded bytes array
+    id: config.textualUserId ? config.userName : base64url.encode(new TextEncoder().encode(config.userName))
+  };
+  setExtensions(request, true);
+
+  request.pubKeyCredParams = [];
+  for (const keyAlgo of config.keyAlgos) {
+    const idx = Object.values(KEY_ALGO_NAMES).indexOf(keyAlgo);
+    const id = Object.keys(KEY_ALGO_NAMES)[idx];
+    request.pubKeyCredParams.push({ type: "public-key", alg: id });
+  }
+}
+
+let autoFillAbortController;
+function cancelAutoFill() {
+  if (autoFillAbortController) {
+    !autoFillAbortController.aborted && autoFillAbortController.abort();
+    autoFillAbortController = undefined;
+  }
+}
+
+function configureLogin(request) {
+  cancelAutoFill();
+  let useAutoFill = config.autoFill && isAutoFillSupported;
+  $("#credId, #transports").closest('tr').toggle(!useAutoFill);
+  $("#autoFill").closest('tr').toggle(isAutoFillSupported);
+  $("#userLogin").toggle(useAutoFill);
+  request.allowCredentials = !useAutoFill && config.credId ? [{
+    "type": "public-key",
+    "id": config.credId,
+  }] : [];
+  request.hints = config.hints?.length ? config.hints : undefined;
+  try {
+    if (request.allowCredentials?.length > 0 && config.transports) {
+      request.allowCredentials[0].transports = JSON.parse(config.transports);
+    }
+  } catch (error) {
+    console.error("Invalid transports:", config.transports);
+  }
+  request.userVerification = config.userVerification ? config.userVerification : undefined;
+  setExtensions(request);
+
+  if (config.sign) {
+    if (!request.extensions) {
+      request.extensions = {};
+    }
+    request.extensions.thalesgroup_txn_ext_v1 = REQ_LOGIN_SIGN_EXT;
+  } else if (request.extensions) {
+    delete request.extensions.thalesgroup_txn_ext_v1;
+  }
+  if (JSON.stringify(request.extensions) === '{}') {
+    delete request.extensions;
+  }
+
+  if (useAutoFill) {
+    // launch autofill
+    autoFillAbortController = new AbortController();
+    setTimeout(() => {
+      console.log("start auto fill");
+      runRequest({
+        signal: autoFillAbortController.signal,
+        mediation: "conditional"
+      });
+      $("#userLogin input")[0].focus();
+    }, 500);
+  }
+}
+
+function saveConfig() {
+  localStorage.setItem("webauthn_pg_tests", JSON.stringify(jsc.toJSON()));
+}
+
+function configChanged() {
+  saveConfig();
+  updateConfig(getRequest());
+  showSupport();
+}
+jsc.onChange(configChanged)
+  .setConfig(localStorage.getItem("webauthn_pg_tests"))
+  .showConfigTable($("#config")[0], false);
+$("#config tbody").prepend('<tr id="userLogin"><td>Auto fill:</td><td><input type="text" autoComplete="username webauthn" /></td></tr>');
+
+function stringifyUint8ArrayAsBase64(key, value) {
+  if (value.buffer && value.byteLength) {
+    return base64url.encode(value);
+  } else {
+    return value;
+  }
+}
+
+function array2hex(u8array) {
+  return Array.from(u8array).map(b => ("0" + b.toString(16)).slice(-2)).join('');
+}
+
+function getRequest() {
+  let reqId = Number.parseInt(document.querySelector("input[name=request]:checked").value);
+  return {
+    request: requests[reqId],
+    configurator: requestConfigurators[reqId],
+    operation: operations[reqId],
+    class: "." + reqId
+  };
+}
+
+function updateConfig(req) {
+  req.configurator(req.request);
+  $("#input").val(JSON.stringify(req.request, null, 2));
+}
+
+function updateRequest() {
+  $(".result").empty();
+  $(".result").val("");
+  $("#config tr").hide();
+  let req = getRequest();
+  operation = req.operation;
+  $(req.class).show();
+  updateConfig(req);
+  showSupport();
+}
+updateRequest();
+$("input[name=request]").on("change", updateRequest);
+
+// Reset JSON input
+$("#reset-input").on("click", () => {
+  resetRequests();
+  configChanged();
+  readInput();
+  $("#status").text("").removeClass("status-ok status-error");
+  $("#output").val("");
+  $("#parsed-data").empty();
+
+});
+
+// Parse JSON output
+$("#parse-output").on("click", () => {
+  parseResult();
+});
+
+function setDisabled(selector, isDisabled) {
+  $(selector).prop("disabled", isDisabled ? "disabled" : undefined);
+}
+
+function readInput() {
+  let disableInputs = false;
+  let jsonInput;
+  try {
+    jsonInput = JSON.parse($("#input").val());
+    $("#input").removeClass("error");
+  } catch (jsonErr) {
+    $("#input").addClass("error");
+    disableInputs = true;
+  }
+  setDisabled("input, button, select", disableInputs);
+  return jsonInput;
+}
+$("#input").on("keyup", () => {
+  readInput();
+});
+
+async function parseResult(result) {
+
+  function addRow(name, value) {
+    $("#parsed-data").append(`<tr><td>${name}: </td><td>${value}</td></tr>`);
+  }
+  function nvListItem(name, value) {
+    return `<li><strong>${name}</strong>: ${value}</li>`;
+  }
+
+  function addAuthData(authenticatorData) {
+    /*
+    rpIdHash: 32 	SHA-256 hash of the RP ID the credential is scoped to.
+    flags 	1 	Flags (bit 0 is the least significant bit):
+      Bit 0: User Present (UP)
+      Bit 1: Reserved for future use (RFU1).
+      Bit 2: User Verified (UV)
+      Bit 3: Backup Eligibility (BE).
+      Bit 4: Backup State (BS).
+      Bit 5: Reserved for future use (RFU2).
+      Bit 6: Attested credential data included (AT).
+      Bit 7: Extension data included (ED).
+    signCount 	4 	Signature counter, 32-bit unsigned big-endian integer.
+    attestedCredentialData 	variable (if present)
+    extensions 	variable (if present) 	CBOR Extension-defined authenticator data.
+    */
+    let authDesc = "<ul>";
+    authDesc += nvListItem("rpIdHash", base64url.encode(authenticatorData.slice(0, 32)));
+    const flag = new Int8Array(authenticatorData.slice(32, 33))[0];
+    let flags = [];
+    (flag & 0x01) && flags.push("User Present");
+    (flag & 0x04) && flags.push("User Verified");
+    (flag & 0x08) && flags.push("Backup Eligible");
+    (flag & 0x10) && flags.push("Backed-up");
+    (flag & 0x40) && flags.push("Attested data");
+    (flag & 0x80) && flags.push("Extension data");
+    const counter = new DataView(new Uint8Array(authenticatorData.slice(33, 37)).buffer).getUint32();
+    let sFlag = "";
+    for (let mask=0x80; mask >= 1; mask /= 2) {
+      sFlag += mask & flag ? "1" : "0";
+    }
+    authDesc += nvListItem("Flags",
+      "0b" + sFlag + (flags.length ? `  (${flags.toString().replaceAll(",", ", ")})` : ""));
+    authDesc += nvListItem("Counter", counter);
+    if (flag & 0x40) {
+      let credData = "<ul>";
+      /*
+      attestedCredentialData:
+        AAGUID: 16
+        CredId Len: 2
+        CredId
+        COSE Pub key: 77?
+      */
+
+      let aaguidHexa = array2hex(new Uint8Array(authenticatorData.slice(37, 53)));
+      let aaguid = `${aaguidHexa.slice(0, 8)}-${aaguidHexa.slice(8, 12)}-${aaguidHexa.slice(12, 16)}-${aaguidHexa.slice(16, 20)}-${aaguidHexa.slice(20)}`;
+      if (aaguid != "00000000-0000-0000-0000-000000000000") {
+        aaguid = `<a target="_blank" href="https://opotonniee.github.io/fido-mds-explorer/?aaguid=${aaguid}">${aaguid}</a>`;
+      }
+      credData += nvListItem("AAGUID", aaguid);
+
+      const credIdLen = new DataView(new Uint8Array(authenticatorData.slice(53, 55)).buffer).getUint16();
+      const credId = base64url.encode(authenticatorData.slice(55, 55 + credIdLen));
+      $("#credId").val(credId);
+      config.credId = credId;
+      saveConfig();
+      credData += nvListItem("CredId", credId);
+
+      let pubKey = authenticatorData.slice(55 + credIdLen/*, 55 + credIdLen + 77*/);
+      credData += nvListItem("Pub Key", base64url.encode(pubKey));
+      credData += "</ul>";
+
+      authDesc += nvListItem("Attested cred data", credData);
+    }
+
+    addRow("Authenticator Data", authDesc);
+  }
+
+  function showX5c(x5c) {
+    let res = "<br/>Certificates: <ul>";
+    for (cert of x5c) {
+      const b64cert = base64url.encode(cert).replaceAll("_", "/").replaceAll("-", "+");
+      res += `<li><a target="_blank" href="https://gchq.github.io/CyberChef/#recipe=Parse_X.509_certificate('Raw')&input=${encodeURIComponent(b64cert)}">🔎</a> - <a target="_blank" href="https://opotonniee.github.io/fido-mds-explorer/?x5c=${b64cert}">${b64cert}</a></li>`;
+    }
+    res += "</ul>";
+    return res;
+  }
+
+  $("#parsed-data").empty();
+  if (!result) {
+    try {
+      let output = $("#output").val();
+      if (!output) {
+        return;
+      }
+      result = JSON.parse(output);
+    } catch (error) {
+      $("#status").text("Error: JSON result is not valid").removeClass("status-ok").addClass("status-error");
+      return;
+    }
+  }
+  if (result.response.clientDataJSON) {
+    let clientData = JSON.parse(new TextDecoder().decode(base64url.decode(result.response.clientDataJSON)));
+    let clientDataList = "<ul>";
+    for (e in clientData) {
+      clientDataList += `<li><strong>${e}</strong>: ${JSON.stringify(clientData[e])}</li>`;
+    }
+    addRow("Client Data", clientDataList);
+  }
+  if (result.response.userHandle) {
+    addRow("User Handle", config.textualUserId ?
+      result.response.userHandle
+      : new TextDecoder().decode(base64url.decode(result.response.userHandle)));
+  }
+  if (result.response.authenticatorData) {
+    addAuthData(base64url.decode(result.response.authenticatorData));
+  }
+  if (result.response.attestationObject) {
+    const attObj = CBOR.decode(base64url.decode(result.response.attestationObject).buffer);
+    console.log("Attestation Object", attObj);
+    addAuthData(attObj.authData);
+    let attDesc;
+    if (attObj.fmt != "none") {
+      attDesc = "Format: " + attObj.fmt + "<br/>";
+      if (attObj.fmt == "android-safetynet") {
+        const jwtBody = new TextDecoder().decode(attObj.attStmt.response).split('.')[1];
+        attDesc += "<pre>" + JSON.stringify(JSON.parse(new TextDecoder().decode(base64url.decode(jwtBody))),
+          stringifyUint8ArrayAsBase64, 2) + "</pre>";
+      } else if (attObj.fmt == "fido-u2f") {
+        attDesc += "<br/>Signature: " + base64url.encode(attObj.attStmt.sig);
+        attDesc += showX5c(attObj.attStmt.x5c);
+      } else if (attObj.fmt == "packed") {
+        attDesc = "Format: " + attObj.fmt + (attObj.attStmt.x5c ? " (Full)" : " (Self)") + "<br/>";
+        if (attObj.attStmt.x5c) {
+          attDesc = "Format: packed (Full)<br/>";
+          attDesc += showX5c(attObj.attStmt.x5c);
+        } else if (attObj.attStmt.ecdaaKeyId) {
+          attDesc = "Format: packed (ecdaa)<br/>";
+          attDesc += "<pre>" + JSON.stringify(attObj.attStmt, stringifyUint8ArrayAsBase64, 2) + "</pre>";
+        } else {
+          attDesc = "Format: packed (self)<br/>";
+          attDesc += "<pre>" + JSON.stringify(attObj.attStmt, stringifyUint8ArrayAsBase64, 2) + "</pre>";
+        }
+      } else {
+        attDesc += "<pre>" + JSON.stringify(attObj.attStmt, stringifyUint8ArrayAsBase64, 2) + "</pre>";
+      }
+    } else {
+      attDesc = "none";
+
+    }
+    addRow("Attestation Statement", attDesc);
+  }
+  if (result.response.getTransports) {
+    result.response.transports = result.response.getTransports();
+  }
+  if (result.response.transports) { // IdCloud returns this it provided by the authenticator
+    addRow("Transports", result.response.transports);
+    config.transports = JSON.stringify(result.response.transports);
+    $("#transports").val(config.transports);
+    saveConfig();
+  }
+
+  let keyAlgo = result.response.publicKeyAlgorithm ? result.response.publicKeyAlgorithm
+    : (result.response.getPublicKeyAlgorithm ? result.response.getPublicKeyAlgorithm() : undefined);
+  if (keyAlgo) {
+    let keyAlgoName = KEY_ALGO_NAMES[keyAlgo];
+    addRow("Key algo", `${keyAlgo} ${keyAlgoName ? " (" + keyAlgoName + ")" : ""}`);
+  }
+
+  if ((typeof JsAuthenticatorTests != "undefined") && result?.response?.signature) {
+    addRow("Signature valid?", await JsAuthenticatorTests.validateWebAuthnOutput(result));
+  }
+}
+
+async function runRequest(reqOptions) {
+  $(".result").empty();
+  $(".result").val("");
+  try {
+    let jsonInput = readInput();
+    if (!jsonInput) {
+      return;
+    }
+    let output = await operation(jsonInput, reqOptions);
+    $("#status").text("ok").removeClass("status-error").addClass("status-ok");
+    $("#output").val(JSON.stringify(output, null, 2));
+    parseResult(output);
+  } catch (err) {
+    if (reqOptions) {
+      console.error("auto fill cancelled");
+    } else {
+      $("#status").text("error: " + err).removeClass("status-ok").addClass("status-error");
+      console.error(err);
+    }
+  }
+}
+
+$("#run").on("click", () => {
+  cancelAutoFill();
+  runRequest();
+});
