@@ -268,10 +268,10 @@ class IdCloud {
           case 0: // Unsigned Integer
             return getLength(additionalInfo);
 
-          case 1: // Negative Integer
+          case 1: { // Negative Integer
             const val = getLength(additionalInfo);
             return typeof val === 'bigint' ? -1n - val : -1 - val;
-
+          }
           case 2: { // Byte string
             const len = getLength(additionalInfo);
             const bytes = new Uint8Array(dataView.buffer, offset, Number(len));

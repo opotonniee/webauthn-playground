@@ -1,3 +1,6 @@
+"use strict";
+/* global $, JsConfig, IdCloud, CBOR, JsAuthenticatorTests */
+
 let idCloud;
 
 const base64url = {
@@ -106,9 +109,10 @@ async function showSupport() {
     },
     version: IdCloud.API_V2
   });
-  $("#idcwa").text(await idCloud.isFido2Available() ? "✅" : "❌");
+  const isFido2Available = await idCloud.isFido2Available();
   isAutoFillSupported = await idCloud.isAutoFillSupported();
-  $("#idcaf").text(isAutoFillSupported ? "✅" : "❌");
+  console.log(`[Browser Capabilities] WebAuthn w/ config supported: ${isFido2Available}`);
+  console.log(`[Browser Capabilities] Auto-fill supported: ${isAutoFillSupported}`);
 }
 showSupport();
 
@@ -120,7 +124,7 @@ function setExtensions(request, isRegister) {
 
   request.extensions = request.extensions ? request.extensions : {};
   // reset extensions
-  for (ext of ["prf", "credProps", "largeBlob", "uvm", "payment"]) {
+  for (const ext of ["prf", "credProps", "largeBlob", "uvm", "payment"]) {
       delete request.extensions[ext];
   }
 
@@ -314,6 +318,7 @@ function updateConfig(req) {
 function updateRequest() {
   $(".result").empty();
   $(".result").val("");
+  $("#status").addClass("hidden");
   $("#config tr").hide();
   let req = getRequest();
   operation = req.operation;
@@ -329,7 +334,7 @@ $("#reset-input").on("click", () => {
   resetRequests();
   configChanged();
   readInput();
-  $("#status").text("").removeClass("status-ok status-error");
+  $("#status").text("").addClass("hidden");
   $("#output").val("");
   $("#parsed-data").empty();
 
@@ -440,7 +445,7 @@ async function parseResult(result) {
 
   function showX5c(x5c) {
     let res = "<br/>Certificates: <ul>";
-    for (cert of x5c) {
+    for (const cert of x5c) {
       const b64cert = base64url.encode(cert).replaceAll("_", "/").replaceAll("-", "+");
       res += `<li><a target="_blank" href="https://gchq.github.io/CyberChef/#recipe=Parse_X.509_certificate('Raw')&input=${encodeURIComponent(b64cert)}">🔎</a> - <a target="_blank" href="https://opotonniee.github.io/fido-mds-explorer/?x5c=${b64cert}">${b64cert}</a></li>`;
     }
@@ -457,14 +462,14 @@ async function parseResult(result) {
       }
       result = JSON.parse(output);
     } catch (error) {
-      $("#status").text("Error: JSON result is not valid").removeClass("status-ok").addClass("status-error");
+      $("#status").text("Error: JSON result is not valid").removeClass("status-ok hidden").addClass("status-error");
       return;
     }
   }
   if (result.response.clientDataJSON) {
     let clientData = JSON.parse(new TextDecoder().decode(base64url.decode(result.response.clientDataJSON)));
     let clientDataList = "<ul>";
-    for (e in clientData) {
+    for (const e in clientData) {
       clientDataList += `<li><strong>${e}</strong>: ${JSON.stringify(clientData[e])}</li>`;
     }
     addRow("Client Data", clientDataList);
@@ -543,14 +548,14 @@ async function runRequest(reqOptions) {
       return;
     }
     let output = await operation(jsonInput, reqOptions);
-    $("#status").text("ok").removeClass("status-error").addClass("status-ok");
+    $("#status").text("Ok").removeClass("hidden status-error").addClass("status-ok");
     $("#output").val(JSON.stringify(output, null, 2));
     parseResult(output);
   } catch (err) {
     if (reqOptions) {
       console.error("auto fill cancelled");
     } else {
-      $("#status").text("error: " + err).removeClass("status-ok").addClass("status-error");
+      $("#status").text("Error: " + err).removeClass("hidden status-ok").addClass("status-error");
       console.error(err);
     }
   }

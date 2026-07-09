@@ -64,6 +64,10 @@ h1#title img {
   align-items: center;
 }
 
+a {
+  color: var(--primary-light);
+}
+
 #about a {
   display: inline-flex;
   transition: var(--transition);
@@ -387,6 +391,10 @@ tr:hover td {
   background-color: rgba(244, 63, 94, 0.1);
   padding: 4px 8px;
   border-radius: 4px;
+}
+
+.hidden {
+  display: none !important;
 }
 
 /* Dynamic Config Table from JsConfig */
