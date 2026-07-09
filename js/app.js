@@ -8,12 +8,12 @@ const base64url = {
   encode: IdCloud.Utils.bytesToBase64url
 };
 
-function validateRegister(options) {
+function validateRegister(/*options*/) {
   if (!config.userName) {
     throw "User name is mandatory";
   }
 }
-function validateLogin(options) {
+function validateLogin(/*options*/) {
 }
 
 async function idcRegister(options) {
@@ -26,13 +26,14 @@ async function idcLogin(options, reqOptions) {
   return idCloud.authenticate(options, reqOptions);
 }
 
+/*
 function decodePrf(options) {
   if (options?.extensions?.prf?.eval?.first) {
     options.extensions.prf.eval.first =
       IdCloud.Utils.base64urlToBytes(options.extensions.prf.eval.first);
   }
 }
-
+*/
 
 let operations = [idcRegister, idcLogin];
 let operation;
