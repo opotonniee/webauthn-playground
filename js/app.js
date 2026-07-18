@@ -1,11 +1,20 @@
 "use strict";
-/* global $, JsConfig, IdCloud, CBOR, JsAuthenticatorTests */
-
-let idCloud;
+/* global $, JsConfig, CBOR, JsAuthenticatorTests, PublicKeyCredential */
 
 const base64url = {
-  decode: IdCloud.Utils.base64urlToBytes,
-  encode: IdCloud.Utils.bytesToBase64url
+  encode: function (bytes) {
+    const arrayBuf = ArrayBuffer.isView(bytes) ? bytes : new Uint8Array(bytes);
+    const binString = Array.from(arrayBuf, (x) =>
+      String.fromCodePoint(x)).join("");
+    return btoa(binString).replaceAll("+", "-").replaceAll("/", "_")
+      .replaceAll("=", "");
+  },
+  decode: function (base64) {
+    const padding = "====".substring(base64.length % 4);
+    const binString = atob(base64.replaceAll("-", "+")
+      .replaceAll("_", "/") + (padding.length < 4 ? padding : ""));
+    return Uint8Array.from(binString, (m) => m.codePointAt(0));
+  }
 };
 
 function validateRegister(/*options*/) {
@@ -16,33 +25,39 @@ function validateRegister(/*options*/) {
 function validateLogin(/*options*/) {
 }
 
-async function idcRegister(options) {
+async function fidoRegister(options) {
   validateRegister(options);
-  return idCloud.enroll(options, { getCredName: (defName, aaguid) => ` ${aaguid} on ${defName} ` });
+  return navigator.credentials.create({
+     publicKey: PublicKeyCredential.parseCreationOptionsFromJSON(options) 
+  });
 }
 
-async function idcLogin(options, reqOptions) {
+async function fidoAuthenticate(options, reqOptions) {
   validateLogin(options);
-  return idCloud.authenticate(options, reqOptions);
+  return navigator.credentials.get({
+      publicKey: PublicKeyCredential.parseRequestOptionsFromJSON(options),
+      mediation: reqOptions?.mediation,
+      signal: reqOptions?.signal
+    });
 }
 
-/*
+/* *
 function decodePrf(options) {
   if (options?.extensions?.prf?.eval?.first) {
     options.extensions.prf.eval.first =
-      IdCloud.Utils.base64urlToBytes(options.extensions.prf.eval.first);
+      base64url.decode(options.extensions.prf.eval.first);
   }
 }
-*/
+/* */
 
-let operations = [idcRegister, idcLogin];
+let operations = [fidoRegister, fidoAuthenticate];
 let operation;
 let RP_NAME = "webauthn-playground";
 let requestConfigurators = [configureRegister, configureLogin];
 const REQ_REGISTER = {
   "rp": {
     origins: [origin],
-    id: origin.hostname,
+    id: window.location.hostname,
     name: RP_NAME
   },
   "challenge": "AAABeB78HrIemh1jTdJICr_3QG_RMOhp",
@@ -103,17 +118,12 @@ let config = jsc.value;
 
 let isAutoFillSupported = false;
 async function showSupport() {
-  idCloud = new IdCloud({
-    fido: {
-      usePlatformFIDO: config.authenticatorAttachment != "cross-platform",
-      useRoamingFIDO: config.authenticatorAttachment != "platform"
-    },
-    version: IdCloud.API_V2
+  window.PublicKeyCredential?.getClientCapabilities().then((caps) => {
+    console.log(`[Browser Capabilities] ${JSON.stringify(caps, undefined, 2)}`);
+    isAutoFillSupported = caps.conditionalGet;
+  }).catch(() => {
+    console.warn(`[Browser Capabilities] UNKNOWN`);
   });
-  const isFido2Available = await idCloud.isFido2Available();
-  isAutoFillSupported = await idCloud.isAutoFillSupported();
-  console.log(`[Browser Capabilities] WebAuthn w/ config supported: ${isFido2Available}`);
-  console.log(`[Browser Capabilities] Auto-fill supported: ${isAutoFillSupported}`);
 }
 showSupport();
 
@@ -207,7 +217,6 @@ function configureRegister(request) {
     displayName: capitalize(config.userName, true),
     // user.id is a byte buffer, and can be returned as the userHandle in authentication response,
     // Authenticators overwrite existing discoverable credentials that have the same rp.id and user.id
-    // Note: IdCloud always provides it as a base64 encoded bytes array
     id: config.textualUserId ? config.userName : base64url.encode(new TextEncoder().encode(config.userName))
   };
   setExtensions(request, true);
@@ -282,7 +291,6 @@ function saveConfig() {
 function configChanged() {
   saveConfig();
   updateConfig(getRequest());
-  showSupport();
 }
 jsc.onChange(configChanged)
   .setConfig(localStorage.getItem("webauthn_pg_tests"))
@@ -325,7 +333,6 @@ function updateRequest() {
   operation = req.operation;
   $(req.class).show();
   updateConfig(req);
-  showSupport();
 }
 updateRequest();
 $("input[name=request]").on("change", updateRequest);
@@ -521,7 +528,7 @@ async function parseResult(result) {
   if (result.response.getTransports) {
     result.response.transports = result.response.getTransports();
   }
-  if (result.response.transports) { // IdCloud returns this it provided by the authenticator
+  if (result.response.transports) {
     addRow("Transports", result.response.transports);
     config.transports = JSON.stringify(result.response.transports);
     $("#transports").val(config.transports);
@@ -550,6 +557,7 @@ async function runRequest(reqOptions) {
     }
     let output = await operation(jsonInput, reqOptions);
     $("#status").text("Ok").removeClass("hidden status-error").addClass("status-ok");
+    output = output.toJSON();
     $("#output").val(JSON.stringify(output, null, 2));
     parseResult(output);
   } catch (err) {
