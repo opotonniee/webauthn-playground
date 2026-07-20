@@ -84,9 +84,9 @@ a {
 /* Layout Grid */
 .playground-grid {
   display: grid;
-  grid-template-columns: minmax(360px, 450px) 1fr;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
   gap: 24px;
-  max-width: 1400px;
+  width: min(100%, 1800px);
   margin: 24px auto;
   padding: 0 24px;
   box-sizing: border-box;
@@ -445,19 +445,25 @@ tr:hover td {
 
 .table-responsive {
   width: 100%;
-  overflow-x: auto;
+  overflow-x: hidden;
   border: 1px solid var(--border-color);
   border-radius: 8px;
 }
 
 #parsed-data {
   margin: 0;
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
 }
 
 #parsed-data td {
   padding: 12px;
   line-height: 1.5;
   border-bottom: 1px solid var(--border-color);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 #parsed-data tr:last-child td {
