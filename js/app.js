@@ -295,7 +295,24 @@ function configChanged() {
 jsc.onChange(configChanged)
   .setConfig(localStorage.getItem("webauthn_pg_tests"))
   .showConfigTable($("#config")[0], false);
-$("#config tbody").prepend('<tr id="userLogin"><td>Auto fill:</td><td><input type="text" autoComplete="username webauthn" /></td></tr>');
+
+function updateRequest() {
+  $(".result").empty();
+  $(".result").val("");
+  $("#status").addClass("hidden");
+  $("#config tr").hide();
+  let req = getRequest();
+  operation = req.operation;
+  $(req.class).show();
+  updateConfig(req);
+}
+$("input[name=request]").on("change", updateRequest);
+
+function showConfig() {
+  $("#config tbody").prepend('<tr id="userLogin"><td>Auto fill:</td><td><input type="text" autoComplete="username webauthn" /></td></tr>');
+  updateRequest();
+}
+showConfig();
 
 function stringifyUint8ArrayAsBase64(key, value) {
   if (value.buffer && value.byteLength) {
@@ -324,18 +341,12 @@ function updateConfig(req) {
   $("#input").val(JSON.stringify(req.request, null, 2));
 }
 
-function updateRequest() {
-  $(".result").empty();
-  $(".result").val("");
-  $("#status").addClass("hidden");
-  $("#config tr").hide();
-  let req = getRequest();
-  operation = req.operation;
-  $(req.class).show();
-  updateConfig(req);
-}
-updateRequest();
-$("input[name=request]").on("change", updateRequest);
+// Reset config to defaults
+$("#reset-config").on("click", () => {
+  jsc.resetToDefault(true);
+  configChanged();
+  showConfig();
+});
 
 // Reset JSON input
 $("#reset-input").on("click", () => {
@@ -562,7 +573,7 @@ async function runRequest(reqOptions) {
     parseResult(output);
   } catch (err) {
     if (reqOptions) {
-      console.error("auto fill cancelled");
+      console.warn("auto fill cancelled");
     } else {
       $("#status").text("Error: " + err).removeClass("hidden status-ok").addClass("status-error");
       console.error(err);
